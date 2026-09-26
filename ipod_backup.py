@@ -38,13 +38,10 @@ def resolve_source(source: Path) -> Path:
             )
             source = without_prompt_marker
     if not source.exists():
-        volumes = Path("/Volumes")
-        mounted = sorted(entry.name for entry in volumes.iterdir()) if volumes.is_dir() else []
-        details = f" Mounted volumes: {', '.join(mounted)}." if mounted else ""
         raise FileNotFoundError(
-            f"Source path does not exist: {source}.{details} "
-            "Check the exact volume name in /Volumes; a trailing '$' in a "
-            "Terminal prompt is not part of the path."
+            f"Source path does not exist: {source}. Check that the iPod is mounted "
+            "and that IPOD_SOURCE (or the supplied source argument) is its exact "
+            "mount path."
         )
     source = source.resolve(strict=True)
     if not source.is_dir():
@@ -97,12 +94,25 @@ def scan_files(root: Path) -> dict[str, FileInfo]:
             previous = normalized.get(key)
             if previous is not None and previous != relative:
                 raise ValueError(
-                    "Two source paths collide on a typical Mac destination: "
+                    "Two source paths collide on a case-insensitive or "
+                    "Unicode-normalizing destination filesystem: "
                     f"{previous!r} and {relative!r}"
                 )
             normalized[key] = relative
             files[relative] = FileInfo(full_path, full_path.stat().st_size)
     return files
+
+
+def limit_files(files: dict[str, FileInfo], limit: int | None) -> dict[str, FileInfo]:
+    if limit is None:
+        return files
+    if limit < 1:
+        raise ValueError("--limit must be at least 1")
+    ordered = sorted(
+        files.items(),
+        key=lambda item: (item[1].path.suffix.casefold() not in AUDIO_SUFFIXES, item[0]),
+    )
+    return dict(ordered[:limit])
 
 
 def load_name_map(root: Path) -> dict[str, str]:
@@ -346,7 +356,7 @@ def audio_metadata(path: Path) -> tuple[str | None, str | None]:
 
 def safe_filename_component(text: str, maximum_bytes: int = 200) -> str:
     text = "".join(
-        "-" if character in "/:" else character
+        "-" if character in '/\\:*?"<>|' else character
         for character in text
         if ord(character) >= 32 and ord(character) != 127
     )
@@ -365,6 +375,15 @@ def filename_from_metadata(path: Path, title: str | None, artist: str | None) ->
         name = title or artist
     if not name:
         return None
+    if name.split(".", 1)[0].upper() in {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        *(f"COM{number}" for number in range(1, 10)),
+        *(f"LPT{number}" for number in range(1, 10)),
+    }:
+        name = f"_{name}"
     extension = path.suffix
     available = max(1, 240 - len(extension.encode("utf-8")))
     while name and len(name.encode("utf-8")) > available:
@@ -386,8 +405,13 @@ def retry_rename(source: Path, destination: Path, attempts: int) -> None:
     raise last_error
 
 
-def organize(root: Path, attempts: int) -> int:
-    files = scan_files(root)
+def organize(root: Path, attempts: int, limit: int | None = None) -> int:
+    files = {
+        relative: info
+        for relative, info in scan_files(root).items()
+        if info.path.suffix.casefold() in AUDIO_SUFFIXES
+    }
+    files = limit_files(files, limit)
     name_map = load_name_map(root)
     renamed = 0
     skipped = 0
@@ -396,8 +420,6 @@ def organize(root: Path, attempts: int) -> int:
 
     for relative, info in sorted(files.items()):
         source = info.path
-        if source.suffix.casefold() not in AUDIO_SUFFIXES:
-            continue
         try:
             title, artist = audio_metadata(source)
             target_name = filename_from_metadata(source, title, artist)
@@ -427,6 +449,8 @@ def organize(root: Path, attempts: int) -> int:
     print(
         f"Organizing finished: {renamed} renamed, {skipped} already named, "
         f"{untagged} without usable tags, {failed} failed. "
+        f"Processed {len(files)} audio files"
+        f"{f' (limit {limit})' if limit is not None else ''}. "
         "Rerun the same command to continue after errors."
     )
     return 1 if failed else 0
@@ -483,21 +507,30 @@ def copy_one(source: FileInfo, destination: Path, attempts: int) -> None:
     raise last_error
 
 
-def compare(source_root: Path, destination_root: Path, deep: bool) -> int:
-    source_files = scan_files(source_root)
+def compare(
+    source_root: Path,
+    destination_root: Path,
+    deep: bool,
+    limit: int | None = None,
+) -> int:
+    all_source_files = scan_files(source_root)
+    source_files = limit_files(all_source_files, limit)
     destination_files = scan_files(destination_root) if destination_root.exists() else {}
     name_map = load_name_map(destination_root) if destination_root.exists() else {}
     expected_destinations = {
+        name_map.get(relative, relative): relative for relative in all_source_files
+    }
+    selected_destinations = {
         name_map.get(relative, relative): relative for relative in source_files
     }
     missing = sorted(
-        relative for destination, relative in expected_destinations.items()
+        relative for destination, relative in selected_destinations.items()
         if destination not in destination_files
     )
     extra = sorted(destination_files.keys() - expected_destinations.keys())
     different: list[str] = []
 
-    for destination_path, relative in sorted(expected_destinations.items()):
+    for destination_path, relative in sorted(selected_destinations.items()):
         if destination_path not in destination_files:
             continue
         source = source_files[relative]
@@ -520,14 +553,21 @@ def compare(source_root: Path, destination_root: Path, deep: bool) -> int:
         print(f"EXTRA    {relative}")
 
     print(
-        f"Compared {len(source_files)} source files: "
+        f"Compared {len(source_files)} of {len(all_source_files)} source files"
+        f"{f' (limit {limit})' if limit is not None else ''}: "
         f"{len(missing)} missing, {len(different)} different, {len(extra)} extra."
     )
     return 1 if missing or different or extra else 0
 
 
-def backup(source_root: Path, destination_root: Path, attempts: int, deep: bool) -> int:
-    source_files = scan_files(source_root)
+def backup(
+    source_root: Path,
+    destination_root: Path,
+    attempts: int,
+    deep: bool,
+    limit: int | None = None,
+) -> int:
+    source_files = limit_files(scan_files(source_root), limit)
     destination_root.mkdir(parents=True, exist_ok=True)
     name_map = load_name_map(destination_root)
     copied = 0
@@ -557,7 +597,9 @@ def backup(source_root: Path, destination_root: Path, attempts: int, deep: bool)
 
     print(
         f"Backup finished: {copied} copied, {skipped} already present, "
-        f"{failed} failed. No destination files were deleted."
+        f"{failed} failed. Processed {len(source_files)} source files"
+        f"{f' (limit {limit})' if limit is not None else ''}. "
+        "No destination files were deleted."
     )
     return 1 if failed else 0
 
@@ -572,17 +614,26 @@ def parse_args() -> argparse.Namespace:
         command.add_argument(
             "source",
             type=Path,
-            help="mounted iPod volume or the directory to back up",
+            nargs="?",
+            default=os.environ.get("IPOD_SOURCE"),
+            help="mounted iPod path (defaults to the IPOD_SOURCE environment variable)",
         )
         command.add_argument(
             "destination",
             type=Path,
-            help="backup directory on the Mac",
+            nargs="?",
+            default=os.environ.get("IPOD_BACKUP"),
+            help="backup directory (defaults to the IPOD_BACKUP environment variable)",
         )
         command.add_argument(
             "--hash",
             action="store_true",
             help="hash existing files instead of relying on file sizes (slower)",
+        )
+        command.add_argument(
+            "--limit",
+            type=int,
+            help="maximum files to process; audio files are selected first (default: unlimited)",
         )
         if name == "backup":
             command.add_argument(
@@ -598,7 +649,9 @@ def parse_args() -> argparse.Namespace:
     organize_command.add_argument(
         "directory",
         type=Path,
-        help="existing backup directory to organize in place",
+        nargs="?",
+        default=os.environ.get("IPOD_BACKUP"),
+        help="backup directory (defaults to the IPOD_BACKUP environment variable)",
     )
     organize_command.add_argument(
         "--attempts",
@@ -606,21 +659,40 @@ def parse_args() -> argparse.Namespace:
         default=3,
         help="rename attempts per file (default: 3)",
     )
+    organize_command.add_argument(
+        "--limit",
+        type=int,
+        help="maximum audio files to process (default: unlimited)",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     try:
+        if args.limit is not None and args.limit < 1:
+            raise ValueError("--limit must be at least 1")
         if args.command == "organize":
             if args.attempts < 1:
                 raise ValueError("--attempts must be at least 1")
+            if args.directory is None:
+                raise ValueError(
+                    "Supply a backup directory or set the IPOD_BACKUP environment variable."
+                )
             directory = args.directory.expanduser().resolve(strict=True)
             if not directory.is_dir():
                 raise ValueError(f"Not a directory: {directory}")
             print(f"Organizing backup in place: {directory}")
-            return organize(directory, args.attempts)
+            return organize(directory, args.attempts, args.limit)
 
+        if args.source is None:
+            raise ValueError(
+                "Supply the iPod mount path or set the IPOD_SOURCE environment variable."
+            )
+        if args.destination is None:
+            raise ValueError(
+                "Supply a backup directory or set the IPOD_BACKUP environment variable."
+            )
         source_root = resolve_source(args.source)
         destination_root = args.destination.expanduser().resolve()
         ensure_disjoint(source_root, destination_root)
@@ -630,8 +702,10 @@ def main() -> int:
         if args.command == "backup":
             if args.attempts < 1:
                 raise ValueError("--attempts must be at least 1")
-            return backup(source_root, destination_root, args.attempts, args.hash)
-        return compare(source_root, destination_root, args.hash)
+            return backup(
+                source_root, destination_root, args.attempts, args.hash, args.limit
+            )
+        return compare(source_root, destination_root, args.hash, args.limit)
     except (OSError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 2

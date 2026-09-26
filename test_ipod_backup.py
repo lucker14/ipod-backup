@@ -1,8 +1,10 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import ipod_backup
+import device_test
 
 
 def mp3_with_tags(title, artist):
@@ -69,12 +71,68 @@ class BackupTests(unittest.TestCase):
         volume.mkdir()
         self.assertEqual(ipod_backup.resolve_source(volume), volume.resolve())
 
+    def test_device_discovery_finds_volume_with_ipod_control(self):
+        volume = self.root / "mounted-volume"
+        (volume / "iPod_Control").mkdir(parents=True)
+        other = self.root / "ordinary-volume"
+        other.mkdir()
+        self.assertEqual(
+            device_test.find_ipod_volumes([volume, other]),
+            [volume.resolve()],
+        )
+
+    def test_device_test_auto_selects_single_mounted_ipod(self):
+        volume = self.root / "mounted-volume"
+        (volume / "iPod_Control").mkdir(parents=True)
+        self.assertEqual(
+            device_test.choose_source("auto", [volume]),
+            volume,
+        )
+
+    def test_device_test_explicit_source_overrides_auto_discovery(self):
+        volume = self.root / "mounted-volume"
+        (volume / "iPod_Control").mkdir(parents=True)
+        self.assertEqual(
+            device_test.choose_source(str(volume), []),
+            volume.resolve(),
+        )
+
     def test_backup_and_compare(self):
         self.assertEqual(ipod_backup.backup(self.source, self.destination, 2, False), 0)
         self.assertEqual(ipod_backup.compare(self.source, self.destination, True), 0)
         self.assertEqual(
             (self.destination / "Music" / "F00" / "ABCD.mp3").read_bytes(),
             b"track data",
+        )
+
+    def test_limit_selects_audio_first_and_is_unlimited_by_default(self):
+        files = ipod_backup.scan_files(self.source)
+        music = self.source / "Music" / "F00"
+        for index in range(3):
+            track = music / f"track-{index}.mp3"
+            track.write_bytes(b"audio")
+        files = ipod_backup.scan_files(self.source)
+
+        selected = ipod_backup.limit_files(files, 2)
+        self.assertEqual(len(selected), 2)
+        self.assertTrue(all(path.endswith(".mp3") for path in selected))
+        self.assertEqual(ipod_backup.limit_files(files, None), files)
+
+    def test_limited_backup_and_compare_only_validate_selected_files(self):
+        music = self.source / "Music" / "F00"
+        (music / "track-1.mp3").write_bytes(b"first")
+        (music / "track-2.mp3").write_bytes(b"second")
+        self.assertEqual(
+            ipod_backup.backup(self.source, self.destination, 1, False, limit=1),
+            0,
+        )
+        self.assertEqual(
+            ipod_backup.compare(self.source, self.destination, True, limit=1),
+            0,
+        )
+        self.assertEqual(
+            ipod_backup.compare(self.source, self.destination, False),
+            1,
         )
 
     def test_compare_reports_missing_and_extra_without_deleting(self):
@@ -94,6 +152,29 @@ class BackupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ipod_backup.ensure_disjoint(self.source, self.source / "backup")
 
+    def test_cli_uses_mount_and_backup_environment_variables(self):
+        with patch.dict(
+            "os.environ",
+            {"IPOD_SOURCE": str(self.source), "IPOD_BACKUP": str(self.destination)},
+        ), patch("sys.argv", ["ipod_backup.py", "backup"]):
+            args = ipod_backup.parse_args()
+        self.assertEqual(args.source, self.source)
+        self.assertEqual(args.destination, self.destination)
+
+    def test_filename_sanitization_replaces_windows_forbidden_characters(self):
+        filename = ipod_backup.filename_from_metadata(
+            Path("track.mp3"),
+            'Song: "Live" <Version>',
+            r"Band\Name",
+        )
+        self.assertEqual(filename, "Band-Name - Song- -Live- -Version-.mp3")
+
+    def test_filename_sanitization_avoids_windows_reserved_names(self):
+        self.assertEqual(
+            ipod_backup.filename_from_metadata(Path("track.mp3"), "CON", None),
+            "_CON.mp3",
+        )
+
     def test_organize_renames_from_id3_and_resumes(self):
         track = self.destination / "Music" / "F00" / "X7.mp3"
         track.parent.mkdir(parents=True)
@@ -107,6 +188,18 @@ class BackupTests(unittest.TestCase):
         self.assertTrue(untagged.exists())
         self.assertEqual(ipod_backup.organize(self.destination, 2), 0)
         self.assertTrue(named.exists())
+
+    def test_organize_limit_caps_number_of_tracks(self):
+        folder = self.destination / "Music" / "F00"
+        folder.mkdir(parents=True)
+        for index in range(3):
+            (folder / f"opaque-{index}.mp3").write_bytes(
+                mp3_with_tags(f"Song {index}", "Artist")
+            )
+        self.assertEqual(ipod_backup.organize(self.destination, 1, limit=1), 0)
+        self.assertTrue((folder / "Artist - Song 0.mp3").exists())
+        self.assertTrue((folder / "opaque-1.mp3").exists())
+        self.assertTrue((folder / "opaque-2.mp3").exists())
 
     def test_organize_preserves_compare_and_backup_resume(self):
         original = self.source / "Music" / "F00" / "opaque.mp3"
