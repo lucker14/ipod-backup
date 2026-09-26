@@ -2,9 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from unittest.mock import patch
 
 import ipod_backup
 import device_test
+import start_backup
 
 
 def mp3_with_tags(title, artist):
@@ -95,6 +97,26 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(
             device_test.choose_source(str(volume), []),
             volume.resolve(),
+        )
+
+    def test_beginner_starter_finds_ipod_prompts_default_and_copies_all(self):
+        volume = self.root / "mounted-volume"
+        control = volume / "iPod_Control"
+        (control / "Music" / "F00").mkdir(parents=True)
+        (control / "Music" / "F00" / "track.mp3").write_bytes(b"song")
+        destination = self.root / "default-music" / "Music" / "ipod-backup"
+        with (
+            patch("sys.stdin.isatty", return_value=True),
+            patch("device_test.mounted_volume_roots", return_value=[self.root]),
+            patch("device_test.find_ipod_volumes", return_value=[volume]),
+            patch("start_backup.Path.home", return_value=self.root / "default-music"),
+            patch("builtins.input", return_value=""),
+        ):
+            result = start_backup.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            (destination / "Music" / "F00" / "track.mp3").read_bytes(),
+            b"song",
         )
 
     def test_backup_and_compare(self):

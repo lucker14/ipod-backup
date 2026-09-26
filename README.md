@@ -4,17 +4,29 @@ Back up files from an iPod mounted as a disk, check the copy, and optionally
 rename tagged audio using embedded artist/title metadata. Supports Windows,
 Debian/Linux, and macOS. Python 3.10+; no third-party Python packages.
 
+## Quick start (no commands to type)
+
+1. Connect the iPod and wait for it to appear on your computer.
+2. Start `start_ipod_backup.bat` (Windows), `start_ipod_backup.command` (Mac,
+   double-click), or `start_ipod_backup.sh` (Debian/Linux, run it from a
+   terminal).
+3. When asked where to save, press **Enter** for the suggested
+   `~/Music/ipod-backup` folder, or type a different folder path.
+
+The program finds the mounted iPod and copies **all** its files. Leave it
+connected until it says the backup is complete. It never writes to the iPod.
+Python 3.10 or newer must be installed.
+
 ## TL;DR (technical)
 
 From the repository directory, set `IPOD_SOURCE` to the mounted volume path
-and `IPOD_BACKUP` to the destination. Example for the Mac used during
-development:
+and `IPOD_BACKUP` to the destination. Example:
 
 ```sh
 export IPOD_SOURCE='/Volumes/IPOD UªÍVAT'
 export IPOD_BACKUP="$HOME/Music/iPod-backup"
 
-python3 device_test.py                         # auto-detect; five files in venv + Docker
+python3 device_test.py                         # five-file venv + Docker test
 python3 ipod_backup.py backup                  # all files; no limit by default
 python3 ipod_backup.py compare --hash          # full SHA-256 verification
 python3 ipod_backup.py organize                # rename tagged audio in place
@@ -30,6 +42,11 @@ All ordinary `ipod_backup.py` commands are unlimited by default. Add
 `--limit N` to cap one operation; audio files are selected first. Backup
 copies the iPod data without writing to it. Organize changes filenames only
 in the backup.
+
+The beginner launchers run `start_backup.py`: they auto-detect a mounted
+iPod, ask for the destination (default `~/Music/ipod-backup`), then start a
+complete unlimited backup. To resume, start the same launcher and use the
+same destination.
 
 Create a venv with `python3 -m venv .venv && source .venv/bin/activate`
 (Windows PowerShell: `py -3 -m venv .venv; .\.venv\Scripts\Activate.ps1`).
