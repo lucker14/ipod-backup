@@ -4,6 +4,13 @@ This guide covers backing up an iPod nano mounted as a disk, giving tracks
 readable filenames, collecting them in one folder, and playing them on shuffle
 over AirPlay.
 
+## License and attribution
+
+This repository is licensed under the [MIT License](LICENSE). You may use,
+share, and modify the software. If you redistribute copies or substantial
+portions, retain the copyright and permission notice in [LICENSE](LICENSE),
+which identifies Petr Pluhar as the original creator.
+
 The backup tool is `ipod_backup.py`. It uses only Python's standard library;
 there are no packages to install. It copies the iPod's `iPod_Control` contents
 without changing the iPod. A completed backup preserves the original folder
