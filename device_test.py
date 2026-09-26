@@ -111,6 +111,26 @@ def choose_source(explicit: str, candidates: list[Path]) -> Path:
         print(f"Enter a number from 1 to {len(candidates)}.")
 
 
+def print_layout_status(volume: Path) -> None:
+    layout = ipod_backup.inspect_device_layout(volume)
+    if layout.category == "matches-tested-layout":
+        print(
+            "Storage layout: MATCHES TESTED LAYOUT "
+            "(iPod_Control/Music/Fxx and iPod_Control/iTunes)."
+        )
+    elif layout.category == "music-layout-compatible":
+        print(
+            "Storage layout: iPod music layout found (iPod_Control/Music/Fxx); "
+            "this layout has not been tested on this device."
+        )
+    else:
+        print(
+            "Storage layout: iPod_Control found, but the expected Music/Fxx "
+            "layout was not; file backup may work, audio organization is unverified."
+        )
+    print("The model cannot be identified from folders; this is a layout check only.")
+
+
 def run(command: list[str], *, cwd: Path | None = None) -> None:
     print("+", subprocess.list2cmdline(command) if os.name == "nt" else " ".join(command))
     subprocess.run(command, cwd=cwd, check=True)
@@ -241,6 +261,7 @@ def main() -> int:
             )
 
         print(f"Detected iPod volume: {source}")
+        print_layout_status(source)
         print(
             f"Files per operation: {limit if limit is not None else 'unlimited'} "
             f"(selected {len(files):,}; {total_bytes:,} bytes)"
@@ -250,7 +271,8 @@ def main() -> int:
         if not args.yes:
             if not sys.stdin.isatty():
                 raise RuntimeError(
-                    "This test reads the entire device. Run interactively or pass --yes."
+                    "This test reads the selected device files. "
+                    "Run interactively or pass --yes."
                 )
             answer = input("Continue with the real-device test? [y/N] ").strip().casefold()
             if answer not in {"y", "yes"}:

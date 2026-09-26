@@ -25,6 +25,66 @@ class FileInfo:
     size: int
 
 
+@dataclass(frozen=True)
+class DeviceLayout:
+    category: str
+    music_folders: tuple[str, ...]
+    has_itunes_folder: bool
+
+
+def inspect_device_layout(volume: Path) -> DeviceLayout:
+    """Describe the on-disk iPod layout; this cannot identify the hardware model."""
+    control = volume
+    if control.name.casefold() != "ipod_control":
+        control = next(
+            (
+                entry
+                for entry in volume.iterdir()
+                if entry.is_dir() and entry.name.casefold() == "ipod_control"
+            ),
+            None,
+        )
+        if control is None:
+            return DeviceLayout("no-ipod-control", (), False)
+
+    music = next(
+        (
+            entry
+            for entry in control.iterdir()
+            if entry.is_dir() and entry.name.casefold() == "music"
+        ),
+        None,
+    )
+    if music is None:
+        return DeviceLayout(
+            "ipod-control-only",
+            (),
+            any(
+                entry.is_dir() and entry.name.casefold() == "itunes"
+                for entry in control.iterdir()
+            ),
+        )
+
+    folders = tuple(sorted(
+        entry.name for entry in music.iterdir()
+        if entry.is_dir()
+        and len(entry.name) == 3
+        and entry.name[0].casefold() == "f"
+        and entry.name[1:].isdigit()
+    ))
+    has_itunes = any(
+        entry.is_dir() and entry.name.casefold() == "itunes"
+        for entry in control.iterdir()
+    )
+    if folders and has_itunes:
+        category = "matches-tested-layout"
+    elif folders:
+        category = "music-layout-compatible"
+    else:
+        category = "ipod-control-only"
+    return DeviceLayout(category, folders, has_itunes)
+
+
 def resolve_source(source: Path) -> Path:
     """Use iPod_Control when the supplied path is the mounted volume root."""
     source = source.expanduser()

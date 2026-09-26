@@ -47,12 +47,20 @@ def main() -> int:
         candidates = device_test.find_ipod_volumes(device_test.mounted_volume_roots())
         volume = select_volume(candidates)
         source = ipod_backup.resolve_source(volume)
+        layout = ipod_backup.inspect_device_layout(volume)
         destination = choose_destination().resolve()
         ipod_backup.ensure_disjoint(source, destination)
 
         files = ipod_backup.scan_files(source)
         total_bytes = sum(info.size for info in files.values())
         print(f"\nFound: {volume}")
+        if layout.category == "matches-tested-layout":
+            print("Storage layout matches the tested iPod_Control/Music/Fxx + iTunes layout.")
+        elif layout.category == "music-layout-compatible":
+            print("iPod music folders found; this layout has not been tested on this device.")
+        else:
+            print("iPod_Control found; music folder layout was not recognized.")
+        print("This checks folder layout, not the iPod's exact model.")
         print(f"Files: {len(files):,} ({total_bytes:,} bytes)")
         print(f"Backup folder: {destination}")
         if destination.exists():

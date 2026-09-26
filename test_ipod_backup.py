@@ -63,6 +63,26 @@ class BackupTests(unittest.TestCase):
             self.source.resolve(),
         )
 
+    def test_inspects_layout_matching_tested_profile(self):
+        (self.source / "Music" / "F01").mkdir()
+        (self.source / "iTunes" / "iTunes_Control").mkdir(parents=True)
+        layout = ipod_backup.inspect_device_layout(self.source.parent)
+        self.assertEqual(layout.category, "matches-tested-layout")
+        self.assertEqual(layout.music_folders, ("F00", "F01"))
+        self.assertTrue(layout.has_itunes_folder)
+
+    def test_inspects_music_layout_without_itunes_as_unverified(self):
+        volume = self.root / "music-only-volume"
+        (volume / "iPod_Control" / "Music" / "F00").mkdir(parents=True)
+        layout = ipod_backup.inspect_device_layout(volume)
+        self.assertEqual(layout.category, "music-layout-compatible")
+        self.assertEqual(layout.music_folders, ("F00",))
+        self.assertFalse(layout.has_itunes_folder)
+
+    def test_inspects_volume_without_ipod_control(self):
+        layout = ipod_backup.inspect_device_layout(self.root)
+        self.assertEqual(layout.category, "no-ipod-control")
+
     def test_resolves_trailing_shell_prompt_marker(self):
         volume = self.root / "IPOD UªÍVAT"
         volume.mkdir()

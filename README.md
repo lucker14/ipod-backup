@@ -1,4 +1,4 @@
-# iPod nano backup
+# iPod music backup
 
 Back up files from an iPod mounted as a disk, check the copy, and optionally
 rename tagged audio using embedded artist/title metadata. Supports Windows,
@@ -16,6 +16,29 @@ Debian/Linux, and macOS. Python 3.10+; no third-party Python packages.
 The program finds the mounted iPod and copies **all** its files. Leave it
 connected until it says the backup is complete. It never writes to the iPod.
 Python 3.10 or newer must be installed.
+
+## Supported devices
+
+This is not limited to the 4th-generation iPod nano. It works from the mounted
+filesystem layout, not a hard-coded model list. The host operating system must
+mount the iPod as a readable volume. Automatic discovery looks for
+`iPod_Control`; music organization expects audio files under
+`iPod_Control/Music/Fxx`. Backup copies other files and folders under
+`iPod_Control` too.
+
+The physical device tested so far is one iPod nano (4th generation). Other
+models that expose the same folders are **layout-compatible candidates, so if you can contribute to this repo!**, not
+verified devices. The software cannot identify an exact model from these
+folders, and a matching layout does not guarantee that every file format,
+database, or model-specific feature works. The tool does not use Apple's
+device synchronization protocol and is not intended for iPod touch/iOS devices
+that do not mount as a disk.
+
+There is no model-size or music-count limit in the backup code. Available
+destination space and filesystem limits (for example, a filesystem's maximum
+file size) still apply. The limited integration test checks only five files
+by default; increase `--limit` or use `--limit 0` to test more or all files.
+The ordinary full backup is unlimited by default.
 
 ## TL;DR (technical)
 
