@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python3 - <<'PY'\nimport subprocess\nimport tempfile\nfrom pathlib import Path\nrepo = Path\\.cwd\\(\\)\nwith tempfile\\.TemporaryDirectory\\(prefix='ipod-launcher-venv-'\\) as tmp:\n    env = Path\\(tmp\\) / '\\.venv'\n    subprocess\\.run\\(\\['python3', '-m', 'venv', str\\(env\\)\\], check=True\\)\n    python = env / 'bin' / 'python'\n    subprocess\\.run\\(\\[str\\(python\\), '-m', 'pip', 'install', '--disable-pip-version-check', '-r', str\\(repo / 'requirements\\.txt'\\)\\], check=True\\)\n    subprocess\\.run\\(\\[str\\(python\\), str\\(repo / 'start_backup\\.py'\\)\\], check=False, input='', text=True, capture_output=True\\)\nprint\\('Fresh venv created and requirements installed successfully\\.'\\)\nPY$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

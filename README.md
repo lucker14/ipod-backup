@@ -15,7 +15,9 @@ Debian/Linux, and macOS. Python 3.10+; no third-party Python packages.
 
 The program finds the mounted iPod and copies **all** its files. Leave it
 connected until it says the backup is complete. It never writes to the iPod.
-Python 3.10 or newer must be installed.
+The launcher creates a private `.venv`, installs any packages listed in
+`requirements.txt`, then starts the backup. Python 3.10 or newer must be
+installed.
 
 ## Supported devices
 
@@ -27,8 +29,8 @@ mount the iPod as a readable volume. Automatic discovery looks for
 `iPod_Control` too.
 
 The physical device tested so far is one iPod nano (4th generation). Other
-models that expose the same folders are **layout-compatible candidates, so if you can contribute to this repo!**, not
-verified devices. The software cannot identify an exact model from these
+models that expose the same folders are **layout-compatible candidates, not
+verified devices**. The software cannot identify an exact model from these
 folders, and a matching layout does not guarantee that every file format,
 database, or model-specific feature works. The tool does not use Apple's
 device synchronization protocol and is not intended for iPod touch/iOS devices
@@ -66,14 +68,16 @@ All ordinary `ipod_backup.py` commands are unlimited by default. Add
 copies the iPod data without writing to it. Organize changes filenames only
 in the backup.
 
-The beginner launchers run `start_backup.py`: they auto-detect a mounted
-iPod, ask for the destination (default `~/Music/ipod-backup`), then start a
-complete unlimited backup. To resume, start the same launcher and use the
-same destination.
+The beginner launchers run `start_backup.py` from the repository's private
+`.venv`. They create/reuse the environment and install `requirements.txt`
+before starting. They auto-detect a mounted iPod, ask for the destination
+(default `~/Music/ipod-backup`), then start a complete unlimited backup. To
+resume, start the same launcher and use the same destination.
 
-Create a venv with `python3 -m venv .venv && source .venv/bin/activate`
-(Windows PowerShell: `py -3 -m venv .venv; .\.venv\Scripts\Activate.ps1`).
-No packages need installing.
+The project currently has no third-party dependencies;
+`requirements.txt` is intentionally empty apart from an explanatory comment.
+The launchers still install from it, so future dependencies can be added in
+one place. A venv keeps these packages separate from the system Python.
 
 Docker: `docker build -t ipod-backup .`. The host must mount the iPod first;
 the device test discovers it on the host and bind-mounts it read-only into
@@ -250,6 +254,7 @@ Windows PowerShell:
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 python device_test.py
 ```
 
@@ -258,11 +263,14 @@ Debian/Linux or macOS:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r requirements.txt
 python device_test.py
 ```
 
 Debian may need `sudo apt install python3-venv`. Deactivate with `deactivate`.
 Alternatively, run with the venv interpreter directly without activating it.
+The beginner launchers perform these setup steps automatically and use the
+repository's `.venv` without requiring manual activation.
 
 ## Docker
 

@@ -1,6 +1,5 @@
 #!/bin/bash
-cd "$(dirname "$0")" || exit 1
-python3 start_backup.py
+"$(dirname "$0")/start_ipod_backup.sh"
 RESULT=$?
 echo
 if [ "$RESULT" -eq 0 ]; then
