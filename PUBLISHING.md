@@ -104,6 +104,13 @@ brew tap lucker14/ipod-backup
 brew install ipod-backup
 ```
 
+On Homebrew versions that block untrusted taps, inspect the formula and then
+explicitly trust it if Homebrew prompts:
+
+```sh
+brew trust --formula lucker14/ipod-backup/ipod-backup
+```
+
 For each release, take the portable archive SHA-256 from `SHA256SUMS`, update
 the URL, version, and checksum in `tap/Formula/ipod-backup.rb`, and publish the
 subtree to the tap's `main` branch. The source checkout's development formula

@@ -26,7 +26,7 @@ starts the backup. Python 3.10 or newer must be installed.
 | Platform/channel | Status | Install route |
 |---|---|---|
 | Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.bat` |
-| macOS | Homebrew tap available; beginner launcher also included | `brew tap lucker14/ipod-backup && brew install ipod-backup` |
+| macOS | Homebrew tap available; beginner launcher also included | `brew tap lucker14/ipod-backup`, then `brew install ipod-backup` (trust the tap if Homebrew prompts) |
 | Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.sh` |
 | Any OS with Python | Source checkout install | `pipx install .` from a clone; a PyPI release is not published yet |
 | macOS/Linux | GitHub Release installer available | See “Release installer” below |

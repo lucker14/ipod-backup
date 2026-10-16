@@ -7,6 +7,13 @@ brew tap lucker14/ipod-backup
 brew install ipod-backup
 ```
 
+If Homebrew blocks the tap as untrusted, review the formula and explicitly
+trust it:
+
+```sh
+brew trust --formula lucker14/ipod-backup/ipod-backup
+```
+
 The formula downloads a versioned, checksum-verified portable release from
 the main [iPod Backup repository](https://github.com/lucker14/ipod-backup).
 Python 3.12 is installed as a Homebrew dependency.
