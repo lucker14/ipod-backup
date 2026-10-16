@@ -45,8 +45,8 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
-      - name: Install RPM build tools
-        run: sudo apt-get update && sudo apt-get install --yes rpm
+      - name: Install package build and APT repository tools
+        run: sudo apt-get update && sudo apt-get install --yes apt-utils dpkg-dev gnupg rpm
       - name: Install fpm
         run: gem install fpm --no-document
       - name: Build Linux and portable release assets
@@ -60,3 +60,24 @@ jobs:
           test -s "dist/ipod-backup-${version}-1.noarch.rpm"
           test -s "dist/ipod-backup-${version}.apk"
           test -s dist/ipod-backup-portable.tar.gz
+      - name: Test signed APT repository generation
+        run: |
+          test_gnupg_home="$(mktemp -d)"
+          chmod 700 "$test_gnupg_home"
+          export GNUPGHOME="$test_gnupg_home"
+          trap 'rm -rf "$test_gnupg_home"' EXIT
+          gpg --batch --pinentry-mode loopback \
+            --passphrase test-only-passphrase \
+            --quick-generate-key "iPod Backup CI Test" ed25519 sign 1d
+          key_fingerprint="$(gpg --batch --with-colons --list-secret-keys |
+            awk -F: '$1 == "fpr" { print $10; exit }')"
+          gpg --batch --armor --export-secret-keys "$key_fingerprint" \
+            > "$RUNNER_TEMP/apt-test-signing-key.asc"
+          export APT_REPO_SIGNING_KEY="$(< "$RUNNER_TEMP/apt-test-signing-key.asc")"
+          export APT_REPO_SIGNING_KEY_PASSPHRASE=test-only-passphrase
+          bash packaging/linux/apt/build-repository.sh dist "$RUNNER_TEMP/apt-test-site"
+          gpgv --keyring "$RUNNER_TEMP/apt-test-site/archive-keyring.gpg" \
+            "$RUNNER_TEMP/apt-test-site/dists/stable/InRelease"
+          grep -q "Package: ipod-backup" \
+            "$RUNNER_TEMP/apt-test-site/dists/stable/main/binary-amd64/Packages"
+          test -s "$RUNNER_TEMP/apt-test-site/dists/stable/Release.gpg"

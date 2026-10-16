@@ -26,8 +26,8 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
-      - name: Install RPM tooling
-        run: sudo apt-get update && sudo apt-get install --yes rpm
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install --yes apt-utils dpkg-dev gnupg rpm
       - name: Install fpm
         run: gem install fpm --no-document
       - name: Validate release version
@@ -58,7 +58,7 @@ jobs:
       - name: Create checksums
         working-directory: dist
         run: sha256sum * > SHA256SUMS
-      - name: Preserve packages for optional repository publishing
+      - name: Preserve packages for optional APT publishing
         uses: actions/upload-artifact@v4
         with:
           name: release-packages
@@ -72,45 +72,33 @@ jobs:
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: gh release upload "$RELEASE_TAG" dist/* --clobber
 
-  publish-cloudsmith:
-    if: ${{ vars.CLOUDSMITH_PUBLISH == 'true' && (github.event_name == 'release' || github.ref == 'refs/heads/main') }}
+  publish-apt:
+    if: ${{ vars.APT_REPO_PUBLISH == 'true' && (github.event_name == 'release' || github.ref == 'refs/heads/main') }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download release packages
+      - uses: actions/checkout@v4
+      - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
           name: release-packages
           path: dist
-      - name: Configure Cloudsmith CLI and OIDC authentication
-        uses: cloudsmith-io/cloudsmith-cli-action@v3
-        with:
-          oidc-namespace: ${{ vars.CLOUDSMITH_NAMESPACE }}
-          oidc-service-slug: ${{ vars.CLOUDSMITH_SERVICE_ACCOUNT }}
-          verify-auth: "true"
-      - name: Publish packages to Cloudsmith
+      - name: Build signed APT repository
         env:
-          CLOUDSMITH_NAMESPACE: ${{ vars.CLOUDSMITH_NAMESPACE }}
-          CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
-        run: |
-          set -euo pipefail
-          : "${CLOUDSMITH_NAMESPACE:?Set the CLOUDSMITH_NAMESPACE Actions variable}"
-          : "${CLOUDSMITH_REPOSITORY:?Set the CLOUDSMITH_REPOSITORY Actions variable}"
-          for package in dist/*.deb; do
-            cloudsmith push deb \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/any-distro/any-version" \
-              "$package"
-          done
-          for package in dist/*.rpm; do
-            cloudsmith push rpm \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/any-distro/any-version" \
-              "$package"
-          done
-          for package in dist/*.apk; do
-            cloudsmith push alpine \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/alpine/any-version" \
-              "$package"
-          done
+          APT_REPO_SIGNING_KEY: ${{ secrets.APT_REPO_SIGNING_KEY }}
+          APT_REPO_SIGNING_KEY_PASSPHRASE: ${{ secrets.APT_REPO_SIGNING_KEY_PASSPHRASE }}
+        run: bash packaging/linux/apt/build-repository.sh dist site
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy APT repository to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

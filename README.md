@@ -27,11 +27,11 @@ starts the backup. Python 3.10 or newer must be installed.
 |---|---|---|
 | Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.bat` |
 | macOS | Homebrew tap available; beginner launcher also included | `brew tap lucker14/ipod-backup`, then `brew install ipod-backup` (trust the tap if Homebrew prompts) |
-| Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.sh` |
+| Linux | Launcher included; project APT feed is being prepared | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.sh` |
 | Any OS with Python | Source checkout install | `pipx install .` from a clone; a PyPI release is not published yet |
 | macOS/Linux | GitHub Release installer available | See “Release installer” below |
-| Debian/Ubuntu | `.deb` available for local installation; no APT feed | See “Native Linux packages” below |
-| Fedora/RHEL, Alpine | Unsigned local `.rpm` / `.apk` assets; no DNF/APK feeds | See [PUBLISHING.md](PUBLISHING.md); unsigned packages are not recommended for normal installation |
+| Debian/Ubuntu | `.deb` available for local installation; signed project APT feed not yet deployed | See “Native Linux packages” below |
+| Fedora/RHEL, Alpine | Unsigned local `.rpm` / `.apk` assets; no maintained DNF/APK feeds | See [PUBLISHING.md](PUBLISHING.md); unsigned packages are not recommended for normal installation |
 | Arch Linux | Development PKGBUILD only; not published to AUR | See [PUBLISHING.md](PUBLISHING.md) |
 | FreeBSD/other BSD | No tested installer yet | Python/source use may work; platform discovery and packaging need testing |
 
@@ -95,18 +95,17 @@ The GitHub Release includes a Debian package for local installation:
 sudo apt install ./ipod-backup_0.1.2_all.deb
 ```
 
-This requires Python 3.10 or newer. The package is downloaded from the release;
-Debian and Fedora packages are also published in the
-[public Cloudsmith repository](https://app.cloudsmith.com/lucker14/r/ipod-backup-deb).
-The feed setup, signatures, and clean-system installs have not yet been
-verified, so use the local `.deb` install above for now; package-name
-installation instructions will be added after that verification.
+This requires Python 3.10 or newer. The `.deb` is also listed in a temporary
+Cloudsmith trial feed, but that is not the maintained distribution channel.
+A signed project-owned APT feed on GitHub Pages is being prepared; it is not
+deployed or verified yet. Use the local `.deb` install above for now. Follow
+[PUBLISHING.md](PUBLISHING.md) for maintainer setup; package-name install
+instructions will be added after clean Debian and Ubuntu tests.
 
-The RPM was published for Fedora but has not been tested with DNF. An APK
-upload was rejected during Cloudsmith processing and is not available from the
-repository. The GitHub Release RPM and APK files are unsigned; do not bypass
-package signature checks to install them. Maintainer setup instructions are in
-[PUBLISHING.md](PUBLISHING.md).
+The v0.1.2 RPM was also uploaded to the temporary Cloudsmith trial feed but
+has not been tested with DNF. An APK upload failed processing. The GitHub
+Release RPM and APK files are unsigned; do not bypass package signature checks
+to install them. Maintainer setup instructions are in [PUBLISHING.md](PUBLISHING.md).
 
 ## Supported devices
 

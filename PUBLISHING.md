@@ -12,13 +12,12 @@ Publishing a GitHub Release starts
 - `ipod-backup-portable.tar.gz` and `install.sh` for macOS/Linux-style shells
 - `SHA256SUMS` for the release files
 
-GitHub Release downloads are not package repositories. The release workflow
-has a Cloudsmith publisher, but it is disabled until repository settings,
-OIDC trust, and package-manager signature verification are configured and
-tested. Do not enable it or advertise package-name installs before that work
-is complete. The RPM and APK files attached to GitHub Releases are unsigned;
-that local-download status does not change when repository publishing is
-enabled.
+GitHub Release downloads are not package repositories. The Debian and Fedora
+packages previously uploaded to Cloudsmith are on a time-limited trial feed;
+they are not the permanent distribution channel. The release workflow now
+supports a signed, project-owned Debian/Ubuntu APT repository on GitHub Pages.
+Do not advertise package-name installs until that feed is deployed and tested.
+The RPM and APK files attached to GitHub Releases are unsigned.
 
 ## Repository map
 
@@ -29,6 +28,7 @@ enabled.
 | `scripts/launchers/` | Beginner-friendly Windows, macOS, and Linux launchers |
 | `pyproject.toml` | Python package metadata and installed command names |
 | `packaging/linux/build-packages.sh` | Build local `.deb`, `.rpm`, and `.apk` files |
+| `packaging/linux/apt/build-repository.sh` | Create a signed APT repository from Debian packages |
 | `packaging/unix/build-portable-archive.sh` | Build the shell-installer payload |
 | `packaging/unix/install.sh` | Install the portable release under a prefix |
 | `packaging/macos/homebrew/ipod-backup.rb` | Homebrew development formula (`--HEAD`) |
@@ -36,7 +36,7 @@ enabled.
 | `packaging/macos/homebrew/tap/` | Source for the separate `lucker14/homebrew-ipod-backup` tap |
 | `packaging/linux/arch/PKGBUILD` | Arch development recipe tracking `main` |
 | `packaging/linux/arch/PKGBUILD.release.template` | Versioned AUR recipe template |
-| `.github/workflows/release-packages.yml` | Build and attach GitHub Release files |
+| `.github/workflows/release-packages.yml` | Build and attach release files; optionally deploy the signed APT feed |
 | `.github/workflows/publish-pypi.yml` | Optional PyPI trusted-publisher workflow |
 
 `pyproject.toml` is the source of the Python package version. For a release,
@@ -72,65 +72,83 @@ For each release:
 GitHub Actions uses the repository's built-in `GITHUB_TOKEN`; no external
 secrets are needed for the current asset-building workflow.
 
-## APT, DNF, and APK repositories
+## Debian and Ubuntu APT repository
 
-Cloudsmith publishing is prepared in `.github/workflows/release-packages.yml`
-and is opt-in. It publishes the Debian, RPM, and Alpine packages from the
-successful package-build job. The workflow also supports manually rebuilding
-an existing tag through `workflow_dispatch` (for example, `v0.1.2`) to
-publish to Cloudsmith without replacing the existing GitHub Release assets.
+The project-owned APT feed is built from the `.deb` produced by
+`.github/workflows/release-packages.yml` and deployed to the public GitHub Pages
+site at `https://lucker14.github.io/ipod-backup/`. This is a signed project
+repository, not the Debian or Ubuntu distribution archive. Hosting uses the
+public GitHub Pages site; no package-hosting vendor account is required.
 
-Current Cloudsmith setup for workspace `lucker14`:
+### One-time setup
 
-- The multi-format repository `ipod-backup-deb` exists and has a **Public
-  broadcast**.
-- `ipod-backup_0.1.2_all.deb` has been manually uploaded and is visible in the
-  public repository. Its SHA-256 matches the GitHub Release manifest.
-- `ipod-backup-0.1.2-1.noarch.rpm` has been manually uploaded under
-  `fedora/any-version`. Its SHA-256 matches the GitHub Release manifest.
-- The attempted manual upload of `ipod-backup-0.1.2.apk` was marked **Error**
-  with no package metadata and has been removed. Diagnose and validate the APK
-  build before retrying or enabling APK publishing.
-- The release workflow has not yet published packages through OIDC.
-- The `ipod-backup-release-publisher` service account and GitHub Actions OIDC
-  provider have been created. The service account has **Write** access to
-  `ipod-backup-deb` only.
-- The active OIDC provider is restricted to `lucker14/ipod-backup` and the
-  `.github/workflows/release-packages.yml` workflow file. Its ref wildcard
-  permits that workflow on any branch or tag.
-- The automatically generated service API key has been rotated. OIDC is the
-  intended authentication method; do not use or store the replacement API key.
-- The Debian package is not yet verified through a clean APT install. Do not
-  advertise package-name installs until the repository setup, signing, and
-  clean-client tests pass.
+1. Create a dedicated OpenPGP signing key for the repository. Keep its
+   passphrase; do not use a personal key or share the private key in chat or
+   source control:
 
-Finish setup in this order:
+   ```sh
+   gpg --quick-generate-key "iPod Backup APT Repository" ed25519 sign 0
+   gpg --list-secret-keys --keyid-format long
+   gpg --armor --export-secret-keys FINGERPRINT > apt-repo-signing-key.asc
+   ```
 
-1. Configure repository/package signing and obtain the repository setup
-   instructions for Debian/Ubuntu, an RPM-based distribution, and Alpine.
-   Keep client-side signature verification enabled.
-2. In GitHub repository Settings → Secrets and variables → Actions → Variables,
-   set `CLOUDSMITH_NAMESPACE=lucker14`,
-   `CLOUDSMITH_SERVICE_ACCOUNT=ipod-backup-release-publisher`, and
-   `CLOUDSMITH_REPOSITORY=ipod-backup-deb`. Leave `CLOUDSMITH_PUBLISH` unset
-   or `false` until the next release is ready for automated publication.
-3. Before enabling publishing, fix and validate the APK package so Cloudsmith
-   accepts it. Then, for the next versioned release, set `CLOUDSMITH_PUBLISH`
-   to the exact value `true` after OIDC and client checks are ready. Do not
-   manually rerun the workflow for `v0.1.2`: its Debian and RPM packages are
-   already present, and duplicate-version upload behavior has not been tested.
-4. Verify the public feed instructions, fresh installs, upgrades, and package
-   signatures on Debian/Ubuntu, an RPM-based distribution, and Alpine. If any
-   verification fails, set `CLOUDSMITH_PUBLISH` back to `false` and do not
-   advertise package-name installs until the issue is resolved.
-5. Update the user README with the verified feed setup and install commands
-   only after all three package-manager tests pass.
+2. In GitHub repository Settings → Pages, set the build and deployment source
+   to **GitHub Actions**.
+3. In Settings → Secrets and variables → Actions → Secrets, add
+   `APT_REPO_SIGNING_KEY` with the contents of the armored private-key file and
+   `APT_REPO_SIGNING_KEY_PASSPHRASE` with its passphrase. Never commit either.
+4. Keep the repository variable `APT_REPO_PUBLISH` unset or `false` until the
+   first deployment is ready. The workflow only deploys when this variable is
+   exactly `true`.
 
-The workflow uses Cloudsmith's official
-[GitHub Actions/OIDC integration](https://docs.cloudsmith.com/integrations/integrating-with-github-actions).
-Package upload commands use Cloudsmith's Debian, RPM, and Alpine repository
-formats. Keep repository names and other non-secret settings in Actions
-variables, never in credentials embedded in URLs or workflow literals.
+### First deployment and verification
+
+1. Set `APT_REPO_PUBLISH=true` in Settings → Secrets and variables → Actions →
+   Variables.
+2. Run **Build release packages** manually from the `main` branch with
+   `release_tag=v0.1.2`. This rebuilds the tagged Debian package and deploys
+   the signed feed without replacing the existing GitHub Release assets.
+3. Confirm these URLs are available:
+   `https://lucker14.github.io/ipod-backup/dists/stable/InRelease` and
+   `https://lucker14.github.io/ipod-backup/pool/main/i/ipod-backup/ipod-backup_0.1.2_all.deb`.
+   The published `archive-keyring.gpg` is the public key; compare its
+   fingerprint against the key you created before trusting it.
+4. On clean Debian and Ubuntu test systems, install the key and source:
+
+   ```sh
+   sudo install -d -m 0755 /etc/apt/keyrings
+   curl -fsSL https://lucker14.github.io/ipod-backup/archive-keyring.gpg \
+     | sudo tee /etc/apt/keyrings/ipod-backup.gpg >/dev/null
+   echo "deb [signed-by=/etc/apt/keyrings/ipod-backup.gpg] https://lucker14.github.io/ipod-backup/ stable main" \
+     | sudo tee /etc/apt/sources.list.d/ipod-backup.list
+   sudo apt update
+   sudo apt install ipod-backup
+   ```
+
+5. Verify `apt update` validates the signed Release metadata without disabling
+   signature checks. Test running the installed commands and an upgrade before
+   adding these instructions to the user README.
+
+After setup, each published GitHub Release deploys its `.deb` when
+`APT_REPO_PUBLISH=true`. The repository currently retains the package from the
+latest deployment; it is not an archive for pinning old versions.
+
+### Temporary Cloudsmith trial
+
+The v0.1.2 Debian package and Fedora RPM were also manually uploaded to a
+Cloudsmith trial repository. They are not the recommended or maintained
+install route. The billing page showed an Ultra trial billed at $0.00, no
+payment method, and stated that no charge occurs unless the workspace is
+upgraded. Do not upgrade or add a payment method for this project feed.
+
+## RPM and Alpine packages
+
+The GitHub Release includes local `.rpm` and `.apk` artifacts, but they are
+unsigned and should not be installed by bypassing package verification. The
+v0.1.2 RPM was manually placed in the temporary Cloudsmith trial feed; the APK
+upload failed processing. Neither DNF nor APK is a maintained package
+repository. Keep these channels marked unavailable until a sustainable,
+signed feed and clean-system install/upgrade tests are in place.
 
 ## Homebrew
 
