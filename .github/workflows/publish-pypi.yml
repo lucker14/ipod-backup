@@ -3,24 +3,33 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing v-prefixed release tag to publish
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    if: ${{ vars.PUBLISH_TO_PYPI == 'true' }}
+    if: ${{ vars.PUBLISH_TO_PYPI == 'true' && (github.event_name == 'release' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Validate release version
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
           python - <<'PY'
           import os

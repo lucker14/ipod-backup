@@ -3,6 +3,12 @@ name: Build release packages
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing v-prefixed release tag to rebuild and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -12,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -24,7 +32,7 @@ jobs:
         run: gem install fpm --no-document
       - name: Validate release version
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
           python - <<'PY'
           import os
@@ -41,7 +49,7 @@ jobs:
           PY
       - name: Build release files
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
           version="${RELEASE_TAG#v}"
           packaging/linux/build-packages.sh "$version" dist
@@ -50,8 +58,63 @@ jobs:
       - name: Create checksums
         working-directory: dist
         run: sha256sum * > SHA256SUMS
+      - name: Preserve packages for optional repository publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
       - name: Attach files to the GitHub Release
+        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: gh release upload "$RELEASE_TAG" dist/* --clobber
+
+  publish-cloudsmith:
+    if: ${{ vars.CLOUDSMITH_PUBLISH == 'true' && (github.event_name == 'release' || github.ref == 'refs/heads/main') }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download release packages
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages
+          path: dist
+      - name: Configure Cloudsmith CLI and OIDC authentication
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
+        with:
+          oidc-namespace: ${{ vars.CLOUDSMITH_NAMESPACE }}
+          oidc-service-slug: ${{ vars.CLOUDSMITH_SERVICE_ACCOUNT }}
+          verify-auth: "true"
+      - name: Publish packages to Cloudsmith
+        env:
+          CLOUDSMITH_NAMESPACE: ${{ vars.CLOUDSMITH_NAMESPACE }}
+          CLOUDSMITH_DEB_REPOSITORY: ${{ vars.CLOUDSMITH_DEB_REPOSITORY }}
+          CLOUDSMITH_RPM_REPOSITORY: ${{ vars.CLOUDSMITH_RPM_REPOSITORY }}
+          CLOUDSMITH_APK_REPOSITORY: ${{ vars.CLOUDSMITH_APK_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          : "${CLOUDSMITH_NAMESPACE:?Set the CLOUDSMITH_NAMESPACE Actions variable}"
+          : "${CLOUDSMITH_DEB_REPOSITORY:?Set the CLOUDSMITH_DEB_REPOSITORY Actions variable}"
+          : "${CLOUDSMITH_RPM_REPOSITORY:?Set the CLOUDSMITH_RPM_REPOSITORY Actions variable}"
+          : "${CLOUDSMITH_APK_REPOSITORY:?Set the CLOUDSMITH_APK_REPOSITORY Actions variable}"
+          for package in dist/*.deb; do
+            cloudsmith push deb \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_DEB_REPOSITORY/any-distro/any-version" \
+              "$package"
+          done
+          for package in dist/*.rpm; do
+            cloudsmith push rpm \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_RPM_REPOSITORY/any-distro/any-version" \
+              "$package"
+          done
+          for package in dist/*.apk; do
+            cloudsmith push alpine \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_APK_REPOSITORY/alpine/any-version" \
+              "$package"
+          done

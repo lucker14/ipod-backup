@@ -12,11 +12,13 @@ Publishing a GitHub Release starts
 - `ipod-backup-portable.tar.gz` and `install.sh` for macOS/Linux-style shells
 - `SHA256SUMS` for the release files
 
-The workflow does **not** create public APT/DNF/APK feeds or sign packages.
-GitHub Release downloads are not package repositories. The APK and RPM are
-unsigned unless a future signing step is explicitly added and tested. Do not
-publish unsigned packages to a public feed or tell users to bypass signature
-verification.
+GitHub Release downloads are not package repositories. The release workflow
+has a Cloudsmith publisher, but it is disabled until repository settings,
+OIDC trust, and package-manager signature verification are configured and
+tested. Do not enable it or advertise package-name installs before that work
+is complete. The RPM and APK files attached to GitHub Releases are unsigned;
+that local-download status does not change when repository publishing is
+enabled.
 
 ## Repository map
 
@@ -72,26 +74,40 @@ secrets are needed for the current asset-building workflow.
 
 ## APT, DNF, and APK repositories
 
-The release workflow only attaches package files; it does not publish feeds.
-To offer `apt install ipod-backup`, `dnf install ipod-backup`, or `apk add
-ipod-backup`, choose a package host supporting Debian, RPM, and Alpine
-(Cloudsmith is one option), create public repositories, and add a separate
-release-only publisher workflow. Test the host's current upload commands and
-client setup instructions before adding them to the README.
+Cloudsmith publishing is prepared in `.github/workflows/release-packages.yml`
+and is opt-in. It publishes the Debian, RPM, and Alpine packages from the
+successful package-build job. The workflow also supports manually rebuilding
+an existing tag through `workflow_dispatch` (for example, `v0.1.2`) to
+publish to Cloudsmith without replacing the existing GitHub Release assets.
 
-Repository publishing also needs trust/signing configured and tested:
+Before enabling it:
 
-- Debian/APT repository metadata must be signed (usually handled by the host).
-- RPM packages/repository trust needs a tested GPG signing key and client
-  instructions.
-- APK packages must be signed with a private key; clients need the matching
-  public key in `/etc/apk/keys/`.
+1. Create three **public** Cloudsmith repositories, one each for Debian, RPM,
+   and Alpine/APK. Suggested slugs are `ipod-backup-deb`,
+   `ipod-backup-rpm`, and `ipod-backup-apk`.
+2. Create a Cloudsmith service account with only the repository upload
+   permissions it needs. Configure GitHub Actions OIDC for this service
+   account and restrict its trust to `lucker14/ipod-backup` and the release
+   workflow. OIDC avoids a long-lived API key in GitHub.
+3. Configure repository/package signing and verify fresh installs and upgrades
+   on Debian/Ubuntu, an RPM-based distribution, and Alpine with signature
+   verification left enabled. Follow Cloudsmith's current setup instructions
+   for each repository format; do not disable client-side verification.
+4. In GitHub repository Settings → Secrets and variables → Actions → Variables,
+   set `CLOUDSMITH_NAMESPACE`, `CLOUDSMITH_SERVICE_ACCOUNT`,
+   `CLOUDSMITH_DEB_REPOSITORY`, `CLOUDSMITH_RPM_REPOSITORY`, and
+   `CLOUDSMITH_APK_REPOSITORY` to the values you created.
+5. Only after the signing and client tests pass, set `CLOUDSMITH_PUBLISH` to
+   the exact value `true`. Run the workflow manually with `v0.1.2` to publish
+   packages from the existing tag (select the `main` workflow branch), then
+   verify the public feed instructions and package signatures before updating
+   the user README.
 
-Store upload credentials and private keys only as narrowly scoped GitHub
-Actions secrets. Never put credentials in a URL, workflow literal, or
-pull-request job. Keep repository names and non-secret settings in Actions
-variables. Do not document package-name installation until fresh install and
-upgrade work on clean systems with signature verification enabled.
+The workflow uses Cloudsmith's official
+[GitHub Actions/OIDC integration](https://docs.cloudsmith.com/integrations/integrating-with-github-actions).
+Package upload commands use Cloudsmith's Debian, RPM, and Alpine repository
+formats. Keep repository names and other non-secret settings in Actions
+variables, never in credentials embedded in URLs or workflow literals.
 
 ## Homebrew
 
@@ -131,17 +147,21 @@ a trusted AUR SSH host key, so it was not pushed.
 
 ## PyPI and pipx
 
-`pipx install .` works from a source checkout. The PyPI workflow is separate
-and skipped unless repository variable `PUBLISH_TO_PYPI` is exactly `true`.
-To publish:
+The `ipod-backup` name was not registered on PyPI when checked. The workflow
+supports PyPI's pending Trusted Publisher flow, so a first manual upload can
+create the project without a long-lived token:
 
-1. Create the project on PyPI.
-2. Configure a PyPI Trusted Publisher for owner `lucker14`, repository
+1. In the PyPI account's Publishing settings, add a pending GitHub Actions
+   publisher for project `ipod-backup`, owner `lucker14`, repository
    `ipod-backup`, workflow `publish-pypi.yml`, with no environment.
-3. Ensure `pyproject.toml` has the release version and set Actions variable
-   `PUBLISH_TO_PYPI=true`.
-4. Publish a reviewed release and verify the PyPI workflow succeeds before
-   documenting `pipx install ipod-backup`.
+2. Set the GitHub Actions repository variable `PUBLISH_TO_PYPI` to the exact
+   value `true`.
+3. Manually run **Publish to PyPI** from the `main` branch with release tag
+   `v0.1.2`. This first upload creates the PyPI project and publishes the
+   existing version. For later releases, the published GitHub Release
+   automatically triggers PyPI publishing.
+4. Verify the workflow succeeds and `pipx install ipod-backup` works before
+   adding PyPI as an available route in the user README.
 
 Do not create a long-lived PyPI token when trusted publishing is available.
 
