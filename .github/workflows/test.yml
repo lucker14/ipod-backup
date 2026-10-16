@@ -71,7 +71,9 @@ jobs:
             --quick-generate-key "iPod Backup CI Test" ed25519 sign 1d
           key_fingerprint="$(gpg --batch --with-colons --list-secret-keys |
             awk -F: '$1 == "fpr" { print $10; exit }')"
-          gpg --batch --armor --export-secret-keys "$key_fingerprint" \
+          gpg --batch --pinentry-mode loopback \
+            --passphrase test-only-passphrase \
+            --armor --export-secret-keys "$key_fingerprint" \
             > "$RUNNER_TEMP/apt-test-signing-key.asc"
           export APT_REPO_SIGNING_KEY="$(< "$RUNNER_TEMP/apt-test-signing-key.asc")"
           export APT_REPO_SIGNING_KEY_PASSPHRASE=test-only-passphrase
