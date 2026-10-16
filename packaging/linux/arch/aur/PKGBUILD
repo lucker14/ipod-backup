@@ -1,0 +1,33 @@
+pkgname=ipod-backup
+pkgver=0.1.2
+pkgrel=1
+pkgdesc='Back up files from an iPod mounted as a disk'
+arch=('any')
+url='https://github.com/lucker14/ipod-backup'
+license=('MIT')
+depends=('python>=3.10')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/lucker14/ipod-backup/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('573d52f928b066d9d19e002bd821526f032117138b110368ee63189d00ee3787')
+
+package() {
+    install -d "$pkgdir/usr/lib/ipod-backup" \
+        "$pkgdir/usr/bin" "$pkgdir/usr/share/licenses/$pkgname"
+    cp -R "$srcdir/ipod-backup-$pkgver/src/ipod_backup" \
+        "$pkgdir/usr/lib/ipod-backup/"
+    install -m 644 "$srcdir/ipod-backup-$pkgver/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    for command in ipod-backup ipod-backup-cli ipod-backup-test; do
+        case "$command" in
+            ipod-backup) module=ipod_backup.interactive ;;
+            ipod-backup-cli) module=ipod_backup.cli ;;
+            ipod-backup-test) module=ipod_backup.device_test ;;
+        esac
+        install -Dm 755 /dev/stdin "$pkgdir/usr/bin/$command" <<EOF
+#!/bin/sh
+PYTHONPATH=/usr/lib/ipod-backup\${PYTHONPATH:+:\$PYTHONPATH}
+export PYTHONPATH
+exec python3 -m $module "\$@"
+EOF
+    done
+}

@@ -120,12 +120,14 @@ on macOS before announcing a new version.
 
 ## Arch Linux
 
-The current PKGBUILD tracks `main` and skips source verification. To publish on
-AUR, fill `@VERSION@` and `@SHA256@` in
-`packaging/linux/arch/PKGBUILD.release.template` using the exact tagged source
-archive, build it with `makepkg --cleanbuild --syncdeps`, and publish the
-resulting recipe as `ipod-backup` from an AUR account. AUR is a community
-build recipe, not an official binary package feed.
+A version-pinned AUR recipe and matching `.SRCINFO` for v0.1.2 are prepared in
+`packaging/linux/arch/aur/`. The source archive checksum is verified. Before
+publishing, validate with `makepkg --printsrcinfo`,
+`makepkg --cleanbuild --syncdeps`, and `namcap` on Arch Linux, then push the two
+files to the AUR `ipod-backup` repository from an authorized maintainer
+account. AUR is a community build recipe, not an official binary package feed.
+The AUR package name was available when checked; the current Mac did not have
+a trusted AUR SSH host key, so it was not pushed.
 
 ## PyPI and pipx
 

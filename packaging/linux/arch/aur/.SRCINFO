@@ -1,0 +1,12 @@
+pkgbase = ipod-backup
+	pkgdesc = Back up files from an iPod mounted as a disk
+	pkgver = 0.1.2
+	pkgrel = 1
+	url = https://github.com/lucker14/ipod-backup
+	arch = any
+	license = MIT
+	depends = python>=3.10
+	source = ipod-backup-0.1.2.tar.gz::https://github.com/lucker14/ipod-backup/archive/refs/tags/v0.1.2.tar.gz
+	sha256sums = 573d52f928b066d9d19e002bd821526f032117138b110368ee63189d00ee3787
+
+pkgname = ipod-backup
