@@ -19,6 +19,115 @@ The launcher creates a private `.venv`, installs any packages listed in
 `requirements.txt`, then starts the backup. Python 3.10 or newer must be
 installed.
 
+## Installation
+
+The program itself has no runtime dependencies beyond Python 3.10 or newer.
+Packages attached to GitHub Releases are downloadable files, not automatically
+configured APT, DNF, or APK repositories. See [PUBLISHING.md](PUBLISHING.md)
+for the maintainer setup required to publish package feeds, Homebrew, AUR, and
+PyPI.
+
+### Quick install from the latest GitHub Release
+
+After the first GitHub Release has completed successfully, macOS and Linux
+users can download and inspect the installer before running it:
+
+```sh
+curl -fsSLO https://github.com/lucker14/ipod-backup/releases/latest/download/install.sh
+less install.sh
+sh install.sh --user
+```
+
+Or run it directly without saving a local copy:
+
+```sh
+curl -fsSL https://github.com/lucker14/ipod-backup/releases/latest/download/install.sh | sh -s -- --user
+```
+
+This installs the three commands under `~/.local`; add `~/.local/bin` to
+`PATH` if it is not already there. For a system-wide install, download and
+inspect the script, then run `sudo sh install.sh`. Use `--version 1.0.0` to
+select a release. The installer requires `curl`, `tar`, and Python 3.10+ and
+verifies the downloaded portable archive against that release's `SHA256SUMS`.
+The checksum is downloaded from the same GitHub release, so it detects
+corruption but is not an independent signature of publisher identity.
+
+### Install with pipx
+
+From a clone of this repository:
+
+```sh
+pipx install .
+```
+
+This installs `ipod-backup` for the interactive full-backup flow,
+`ipod-backup-cli` for the backup/compare/organize commands, and
+`ipod-backup-test` for the limited device integration test.
+
+### Homebrew (development formula)
+
+The in-repository Homebrew formula currently installs the development `main`
+branch:
+
+```sh
+brew install --HEAD ./Formula/ipod-backup.rb
+```
+
+`brew install ipod-backup` is not available until a versioned formula is
+published in a Homebrew tap; see [PUBLISHING.md](PUBLISHING.md).
+
+### Debian/Ubuntu, Fedora/RHEL, and Alpine
+
+The Linux package builder requires Ruby, the `fpm` gem, and RPM build tools
+(`rpmbuild`, usually provided by a package named `rpm` or `rpm-build`). From
+the repository root, pass the package version and, optionally, an output
+directory:
+
+```sh
+gem install --user-install fpm
+# Add Ruby's user gem bin directory to PATH if `fpm` is not found.
+packaging/build-linux-packages.sh 0.1.0
+```
+
+Install the resulting local package with the matching system package manager:
+
+```sh
+sudo apt install ./dist/ipod-backup_0.1.0_all.deb
+sudo dnf install ./dist/ipod-backup-0.1.0-1.noarch.rpm
+sudo apk add --allow-untrusted ./dist/ipod-backup-0.1.0.apk
+```
+
+The release's RPM is unsigned unless RPM signing has been configured; DNF may
+reject an unsigned package. If the release includes `RPM-GPG-KEY`, import it
+before installing. The APK is unsigned unless APK signing has been configured;
+`--allow-untrusted` is for explicit local testing only, never for a public
+repository.
+
+When a GitHub release is published, the release workflow builds these three
+Linux packages and attaches them to the release. They can be installed as
+local files, but the package-name commands below require configured public
+repositories; they are not enabled yet.
+
+The APK command allows an unsigned local package. Do not use that option for a
+package repository; published Alpine repositories should be signed and their
+public key installed on the system.
+
+### Arch Linux
+
+From the repository root:
+
+```sh
+cd packaging/arch
+makepkg -si
+```
+
+The PKGBUILD currently builds from the project's `main` branch. For package
+repository distribution, pin the source to a tagged release and verify its
+checksum.
+
+The recipes build locally installable packages. Maintainer steps for public
+package feeds and publishing channels are in [PUBLISHING.md](PUBLISHING.md).
+
 ## Supported devices
 
 This is not limited to the 4th-generation iPod nano. It works from the mounted

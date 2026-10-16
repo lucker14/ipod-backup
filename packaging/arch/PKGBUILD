@@ -1,0 +1,33 @@
+pkgname=ipod-backup
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Back up files from an iPod mounted as a disk'
+arch=('any')
+url='https://github.com/lucker14/ipod-backup'
+license=('MIT')
+depends=('python>=3.10')
+source=("ipod-backup::git+https://github.com/lucker14/ipod-backup.git#branch=main")
+sha256sums=('SKIP')
+
+package() {
+    install -d "$pkgdir/usr/lib/ipod-backup" \
+        "$pkgdir/usr/bin" "$pkgdir/usr/share/licenses/$pkgname"
+    install -m 644 "$srcdir/ipod-backup/ipod_backup.py" \
+        "$srcdir/ipod-backup/device_test.py" \
+        "$srcdir/ipod-backup/start_backup.py" \
+        "$pkgdir/usr/lib/ipod-backup/"
+    install -m 644 "$srcdir/ipod-backup/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    for command in ipod-backup ipod-backup-cli ipod-backup-test; do
+        case "$command" in
+            ipod-backup) script=start_backup.py ;;
+            ipod-backup-cli) script=ipod_backup.py ;;
+            ipod-backup-test) script=device_test.py ;;
+        esac
+        install -Dm 755 /dev/stdin "$pkgdir/usr/bin/$command" <<EOF
+#!/bin/sh
+exec python3 /usr/lib/ipod-backup/$script "\$@"
+EOF
+    done
+}
