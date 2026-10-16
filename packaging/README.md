@@ -9,8 +9,12 @@ channel setup belong in [PUBLISHING.md](../PUBLISHING.md).
 | `linux/` | Debian, RPM, Alpine, Arch | FPM builder creates local Linux packages; Arch recipe is development-only |
 | `macos/` | Homebrew | Versioned tap formula template |
 | `unix/` | macOS and Linux shell installer | Portable archive builder and release installer |
-| `windows/` (planned) | Windows package managers | Current user launcher remains at repository root; add a directory when a WinGet/Chocolatey/MSI package is implemented |
+| `windows/` (planned) | Windows package managers | Launcher is in `../scripts/launchers/`; add a directory when a WinGet/Chocolatey/MSI package is implemented |
 | `bsd/` (planned) | FreeBSD, OpenBSD, NetBSD, DragonFly BSD | Add a directory after supported OS testing and a native recipe are available |
+
+Application code lives in `../src/ipod_backup/`, tests in `../tests/`, and
+beginner launchers in `../scripts/launchers/`. Keep generated release
+artifacts out of this tree; CI places them in `dist/`, which is ignored by Git.
 
 The Linux builder is a local-artifact tool, not a repository publisher. Release
 automation belongs under `.github/workflows/`, separated by responsibility:

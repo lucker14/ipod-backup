@@ -1,5 +1,6 @@
 #!/bin/bash
-"$(dirname "$0")/start_ipod_backup.sh"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+"$SCRIPT_DIR/start_ipod_backup.sh"
 RESULT=$?
 echo
 if [ "$RESULT" -eq 0 ]; then

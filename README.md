@@ -7,17 +7,17 @@ rename tagged audio using embedded artist/title metadata. The app uses Python
 ## Quick start (no commands to type)
 
 1. Connect the iPod and wait for it to appear on your computer.
-2. Start `start_ipod_backup.bat` (Windows), `start_ipod_backup.command` (Mac,
-   double-click), or `start_ipod_backup.sh` (Debian/Linux, run it from a
+2. Start `scripts/launchers/start_ipod_backup.bat` (Windows),
+   `scripts/launchers/start_ipod_backup.command` (Mac, double-click), or
+   `scripts/launchers/start_ipod_backup.sh` (Debian/Linux, run it from a
    terminal).
 3. When asked where to save, press **Enter** for the suggested
    `~/Music/ipod-backup` folder, or type a different folder path.
 
 The program finds the mounted iPod and copies **all** its files. Leave it
 connected until it says the backup is complete. It never writes to the iPod.
-The launcher creates a private `.venv`, installs any packages listed in
-`requirements.txt`, then starts the backup. Python 3.10 or newer must be
-installed.
+The launcher creates a private `.venv`, installs this project into it, then
+starts the backup. Python 3.10 or newer must be installed.
 
 ## Installation
 
@@ -25,9 +25,9 @@ installed.
 
 | Platform/channel | Status | Install route |
 |---|---|---|
-| Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `start_ipod_backup.bat` |
-| macOS | Launcher included; public Homebrew tap not published | Install Python 3.10+, then open `start_ipod_backup.command` |
-| Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `./start_ipod_backup.sh` |
+| Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.bat` |
+| macOS | Launcher included; public Homebrew tap not published | Install Python 3.10+, then open `scripts/launchers/start_ipod_backup.command` |
+| Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.sh` |
 | Any OS with Python | Source checkout install | `pipx install .` from a clone; a PyPI release is not published yet |
 | macOS/Linux | Release installer prepared; needs a published GitHub Release | See “Release installer” below |
 | Debian/Ubuntu, Fedora/RHEL, Alpine | Local package recipes prepared; public APT/RPM/APK feeds not configured | See [PUBLISHING.md](PUBLISHING.md) |
@@ -36,7 +36,7 @@ installed.
 
 All routes require Python 3.10 or newer. The Python package has no third-party
 runtime dependencies. The beginner launchers create a private virtual
-environment and install `requirements.txt`.
+environment and install the project from the checkout.
 
 ### Release installer (macOS and Linux)
 
@@ -59,8 +59,8 @@ This installs `ipod-backup`, `ipod-backup-cli`, and `ipod-backup-test` under
 `~/.local`; add `~/.local/bin` to `PATH` if needed. The installer requires
 `curl`, `tar`, and Python 3.10+. It checks the archive against the release's
 `SHA256SUMS`; because both are downloaded from GitHub, this detects corruption
-but is not an independent publisher signature. Use `--version 1.0.0` to choose
-a version.
+but is not an independent publisher signature. Use `--version VERSION` to
+choose a version already published as a GitHub Release.
 
 ### Install from a source checkout
 
@@ -71,13 +71,15 @@ pipx install .
 ```
 
 This installs the three commands listed above. To try the Homebrew development
-formula, use `brew install --HEAD ./Formula/ipod-backup.rb` from a checkout.
+formula, run
+`brew install --HEAD ./packaging/macos/homebrew/ipod-backup.rb` from a checkout.
 It is not yet a versioned tap formula.
 
 ### Windows source install
 
 Install Python 3.10 or newer from [python.org](https://www.python.org/downloads/)
-and download the repository. Double-click `start_ipod_backup.bat`. The launcher
+and download the repository. Double-click
+`scripts/launchers/start_ipod_backup.bat`. The launcher
 creates a private virtual environment and starts the interactive backup. A
 WinGet, Chocolatey, or MSI release is not available yet.
 
@@ -117,17 +119,18 @@ The ordinary full backup is unlimited by default.
 
 ## TL;DR (technical)
 
-From the repository directory, set `IPOD_SOURCE` to the mounted volume path
-and `IPOD_BACKUP` to the destination. Example:
+From a checkout, first install the project into the active Python environment
+with `python -m pip install -e .`. Then set `IPOD_SOURCE` to the mounted volume
+path and `IPOD_BACKUP` to the destination. Example:
 
 ```sh
 export IPOD_SOURCE='/Volumes/IPOD UªÍVAT'
 export IPOD_BACKUP="$HOME/Music/iPod-backup"
 
-python3 device_test.py                         # five-file venv + Docker test
-python3 ipod_backup.py backup                  # all files; no limit by default
-python3 ipod_backup.py compare --hash          # full SHA-256 verification
-python3 ipod_backup.py organize                # rename tagged audio in place
+python3 -m ipod_backup.device_test             # five-file venv + Docker test
+python3 -m ipod_backup backup                  # all files; no limit by default
+python3 -m ipod_backup compare --hash          # full SHA-256 verification
+python3 -m ipod_backup organize                # rename tagged audio in place
 ```
 
 The real-device test defaults to `--limit 5` per operation and exercises
@@ -136,21 +139,30 @@ venv and Docker. It detects mounted volumes containing `iPod_Control`; use
 `--source PATH` to override detection, `--mode venv|docker` to select one
 runtime, and `--limit 0` to test all files. It prompts before reading.
 
-All ordinary `ipod_backup.py` commands are unlimited by default. Add
+All ordinary `python -m ipod_backup` commands are unlimited by default. Add
 `--limit N` to cap one operation; audio files are selected first. Backup
 copies the iPod data without writing to it. Organize changes filenames only
 in the backup.
 
-The beginner launchers run `start_backup.py` from the repository's private
-`.venv`. They create/reuse the environment and install `requirements.txt`
-before starting. They auto-detect a mounted iPod, ask for the destination
-(default `~/Music/ipod-backup`), then start a complete unlimited backup. To
-resume, start the same launcher and use the same destination.
+The beginner launchers in `scripts/launchers/` create/reuse the repository's
+private `.venv`, install the project, auto-detect a mounted iPod, ask for the
+destination (default `~/Music/ipod-backup`), and start a complete unlimited
+backup. To resume, start the same launcher and use the same destination.
 
-The project currently has no third-party dependencies;
-`requirements.txt` is intentionally empty apart from an explanatory comment.
-The launchers still install from it, so future dependencies can be added in
-one place. A venv keeps these packages separate from the system Python.
+The project currently has no third-party runtime dependencies. Its package
+metadata and development tools are managed through `pyproject.toml`.
+
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `src/ipod_backup/` | Installable application package and command entry points |
+| `tests/` | Unit tests |
+| `scripts/launchers/` | Beginner-friendly platform launchers |
+| `packaging/` | Linux, macOS, and portable installer recipes |
+| `.github/workflows/` | CI, release asset builds, and optional PyPI publishing |
+| `Dockerfile` | Container image for the command-line tool |
+| `PUBLISHING.md` | Maintainer release and package-channel instructions |
 
 Docker: `docker build -t ipod-backup .`. The host must mount the iPod first;
 the device test discovers it on the host and bind-mounts it read-only into
@@ -192,9 +204,9 @@ $env:IPOD_BACKUP = Join-Path $env:USERPROFILE 'Music\iPod-backup'
 Paths can instead be passed as positional arguments:
 
 ```text
-python ipod_backup.py backup "IPOD_MOUNT_PATH" "BACKUP_DIRECTORY"
-python ipod_backup.py compare "IPOD_MOUNT_PATH" "BACKUP_DIRECTORY" --hash
-python ipod_backup.py organize "BACKUP_DIRECTORY"
+python -m ipod_backup backup "IPOD_MOUNT_PATH" "BACKUP_DIRECTORY"
+python -m ipod_backup compare "IPOD_MOUNT_PATH" "BACKUP_DIRECTORY" --hash
+python -m ipod_backup organize "BACKUP_DIRECTORY"
 ```
 
 Once `IPOD_SOURCE` and `IPOD_BACKUP` are set, the positional paths can be
@@ -205,10 +217,10 @@ omitted. Use `python3` rather than `python` on Debian/macOS if necessary.
 With Python available, run from this repository directory:
 
 ```text
-python device_test.py
+python -m ipod_backup.device_test
 ```
 
-Debian/macOS may require `python3 device_test.py`. The script scans mounted
+Debian/macOS may require `python3 -m ipod_backup.device_test`. The script scans mounted
 volume roots for `iPod_Control`; it does not recursively search unrelated
 filesystems and does not need root/admin privileges in normal cases. If
 multiple matching volumes are mounted, select one interactively or pass
@@ -233,13 +245,13 @@ integration smoke test, not a full backup or a verification of every track.
 Options:
 
 ```text
-python device_test.py --mode venv           # only the venv test
-python device_test.py --mode docker         # only the Docker test
-python device_test.py --limit 10            # test up to 10 files per operation
-python device_test.py --limit 0              # no file limit
-python device_test.py --source "MOUNT_PATH"  # explicit mounted volume
-python device_test.py --work-dir "PATH"     # location for temporary copies
-python device_test.py --yes                  # skip confirmation
+python -m ipod_backup.device_test --mode venv           # only the venv test
+python -m ipod_backup.device_test --mode docker         # only the Docker test
+python -m ipod_backup.device_test --limit 10            # test up to 10 files per operation
+python -m ipod_backup.device_test --limit 0              # no file limit
+python -m ipod_backup.device_test --source "MOUNT_PATH"  # explicit mounted volume
+python -m ipod_backup.device_test --work-dir "PATH"     # location for temporary copies
+python -m ipod_backup.device_test --yes                  # skip confirmation
 ```
 
 The test scans the iPod file list to choose files but only copies and hashes
@@ -254,7 +266,7 @@ The regular backup command is unlimited unless `--limit` is explicitly
 provided:
 
 ```text
-python ipod_backup.py backup
+python -m ipod_backup backup
 ```
 
 The script backs up `iPod_Control` when present; otherwise, it backs up the
@@ -269,7 +281,7 @@ Existing files are skipped by size by default. Use `--hash` to hash the source
 and existing destination file before skipping:
 
 ```text
-python ipod_backup.py backup --hash
+python -m ipod_backup backup --hash
 ```
 
 ### 4. Verify the complete backup
@@ -277,7 +289,7 @@ python ipod_backup.py backup --hash
 Keep the iPod connected and run:
 
 ```text
-python ipod_backup.py compare --hash
+python -m ipod_backup compare --hash
 ```
 
 Hash comparison reads all source and backup files and may take time.
@@ -289,7 +301,7 @@ comparison before moving files out of their original folders.
 ### 5. Rename tracks (optional)
 
 ```text
-python ipod_backup.py organize
+python -m ipod_backup organize
 ```
 
 MP3 ID3 and M4A/MP4-family embedded tags are used to create names such as
@@ -326,8 +338,8 @@ Windows PowerShell:
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python device_test.py
+python -m pip install --editable .
+python -m ipod_backup.device_test
 ```
 
 Debian/Linux or macOS:
@@ -335,8 +347,8 @@ Debian/Linux or macOS:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-python device_test.py
+python -m pip install --editable .
+python -m ipod_backup.device_test
 ```
 
 Debian may need `sudo apt install python3-venv`. Deactivate with `deactivate`.
@@ -373,13 +385,14 @@ the backup folder must be writable.
 
 ## Tests and license
 
-Unit tests (no connected iPod required):
+Unit tests (no connected iPod required; install the checkout with
+`python -m pip install --editable .` first):
 
 ```text
-python -m unittest -v
+python -m unittest discover -v
 ```
 
-The real-device integration test is `device_test.py` and requires a mounted
+The real-device integration test is `python -m ipod_backup.device_test` and requires a mounted
 iPod; Docker testing additionally requires a working Docker daemon. Use
 `python3` instead of `python` on Debian/macOS if needed.
 

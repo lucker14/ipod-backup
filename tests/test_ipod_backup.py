@@ -2,11 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from unittest.mock import patch
 
-import ipod_backup
-import device_test
-import start_backup
+from ipod_backup import cli as ipod_backup
+from ipod_backup import device_test
+from ipod_backup import interactive as start_backup
 
 
 def mp3_with_tags(title, artist):
@@ -124,16 +123,20 @@ class BackupTests(unittest.TestCase):
         destination = self.root / "backup"
         modules = self.root / "installed-modules"
         with (
-            patch("device_test.REPOSITORY", modules),
-            patch("device_test.run") as run_command,
+            patch("ipod_backup.device_test.PACKAGE_DIR", modules),
+            patch("ipod_backup.device_test.run") as run_command,
         ):
             device_test.docker_run(["backup"], source, destination, 5)
 
         command = run_command.call_args.args[0]
         self.assertIn("python:3.12-slim", command)
-        self.assertIn("/app/ipod_backup.py", command)
+        self.assertEqual(command[command.index("-m") + 1], "ipod_backup")
         self.assertIn(
-            f"type=bind,source={device_test.docker_path(modules)},target=/app,readonly",
+            "PYTHONPATH=/app",
+            command,
+        )
+        self.assertIn(
+            f"type=bind,source={device_test.docker_path(modules)},target=/app/ipod_backup,readonly",
             command,
         )
 
@@ -145,9 +148,9 @@ class BackupTests(unittest.TestCase):
         destination = self.root / "default-music" / "Music" / "ipod-backup"
         with (
             patch("sys.stdin.isatty", return_value=True),
-            patch("device_test.mounted_volume_roots", return_value=[self.root]),
-            patch("device_test.find_ipod_volumes", return_value=[volume]),
-            patch("start_backup.Path.home", return_value=self.root / "default-music"),
+            patch("ipod_backup.device_test.mounted_volume_roots", return_value=[self.root]),
+            patch("ipod_backup.device_test.find_ipod_volumes", return_value=[volume]),
+            patch("ipod_backup.interactive.Path.home", return_value=self.root / "default-music"),
             patch("builtins.input", return_value=""),
         ):
             result = start_backup.main()
@@ -216,7 +219,7 @@ class BackupTests(unittest.TestCase):
         with patch.dict(
             "os.environ",
             {"IPOD_SOURCE": str(self.source), "IPOD_BACKUP": str(self.destination)},
-        ), patch("sys.argv", ["ipod_backup.py", "backup"]):
+        ), patch("sys.argv", ["ipod-backup", "backup"]):
             args = ipod_backup.parse_args()
         self.assertEqual(args.source, self.source)
         self.assertEqual(args.destination, self.destination)

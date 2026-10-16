@@ -13,13 +13,14 @@ class IpodBackup < Formula
     doc.install libexec/"ipod-backup/LICENSE"
 
     {
-      "ipod-backup"      => "start_backup.py",
-      "ipod-backup-cli"  => "ipod_backup.py",
-      "ipod-backup-test" => "device_test.py",
-    }.each do |command, script|
+      "ipod-backup"      => "ipod_backup.interactive",
+      "ipod-backup-cli"  => "ipod_backup",
+      "ipod-backup-test" => "ipod_backup.device_test",
+    }.each do |command, module_name|
       (bin/command).write <<~SH
         #!/bin/sh
-        exec "#{formula_opt_bin("python@3.12")}/python3" "#{libexec}/ipod-backup/#{script}" "$@"
+        export PYTHONPATH="#{libexec}/ipod-backup${PYTHONPATH:+:$PYTHONPATH}"
+        exec "#{formula_opt_bin("python@3.12")}/python3" -m #{module_name} "$@"
       SH
       (bin/command).chmod 0755
     end

@@ -22,7 +22,8 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR=$(CDPATH= cd -- "$OUTPUT_DIR" && pwd)
 mkdir "$STAGE/ipod-backup"
-cp "$ROOT/ipod_backup.py" "$ROOT/device_test.py" "$ROOT/start_backup.py" \
-    "$ROOT/LICENSE" "$STAGE/ipod-backup/"
+cp -R "$ROOT/src/ipod_backup" "$STAGE/ipod-backup/"
+find "$STAGE/ipod-backup/ipod_backup" -type d -name __pycache__ -prune -exec rm -rf {} +
+cp "$ROOT/LICENSE" "$STAGE/ipod-backup/"
 COPYFILE_DISABLE=1 tar -C "$STAGE" -czf "$OUTPUT_DIR/ipod-backup-portable.tar.gz" ipod-backup
 printf 'Portable archive created: %s\n' "$OUTPUT_DIR/ipod-backup-portable.tar.gz"

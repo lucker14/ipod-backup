@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ipod-backup"
-version = "0.1.1"
+version = "0.1.2"
 description = "Back up files from an iPod mounted as a disk"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,9 +13,9 @@ authors = [{ name = "Petr Pluhar" }]
 dependencies = []
 
 [project.scripts]
-ipod-backup = "start_backup:main"
-ipod-backup-cli = "ipod_backup:main"
-ipod-backup-test = "device_test:main"
+ipod-backup = "ipod_backup.interactive:main"
+ipod-backup-cli = "ipod_backup.cli:main"
+ipod-backup-test = "ipod_backup.device_test:main"
 
-[tool.setuptools]
-py-modules = ["ipod_backup", "device_test", "start_backup"]
+[tool.setuptools.packages.find]
+where = ["src"]

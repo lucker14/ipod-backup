@@ -2,4 +2,6 @@
 .venv
 __pycache__
 *.py[cod]
-test_*.py
+/tests
+/packaging
+/scripts

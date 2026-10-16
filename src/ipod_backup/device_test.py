@@ -13,9 +13,9 @@ import tempfile
 import venv
 from pathlib import Path
 
-import ipod_backup
+from . import cli as ipod_backup
 
-REPOSITORY = Path(__file__).resolve().parent
+PACKAGE_DIR = Path(__file__).resolve().parent
 DOCKER_IMAGE = "python:3.12-slim"
 
 
@@ -131,9 +131,14 @@ def print_layout_status(volume: Path) -> None:
     print("The model cannot be identified from folders; this is a layout check only.")
 
 
-def run(command: list[str], *, cwd: Path | None = None) -> None:
+def run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> None:
     print("+", subprocess.list2cmdline(command) if os.name == "nt" else " ".join(command))
-    subprocess.run(command, cwd=cwd, check=True)
+    subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
 def run_suite(
@@ -142,22 +147,37 @@ def run_suite(
     destination: Path,
     limit: int | None,
 ) -> None:
-    tool = REPOSITORY / "ipod_backup.py"
+    environment = os.environ.copy()
+    package_parent = str(PACKAGE_DIR.parent)
+    existing_pythonpath = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        package_parent
+        if not existing_pythonpath
+        else package_parent + os.pathsep + existing_pythonpath
+    )
     limit_option = ["--limit", str(limit)] if limit is not None else []
-    run([
-        str(python), str(tool), "backup", str(source), str(destination), *limit_option
-    ])
-    run([
-        str(python), str(tool), "compare", str(source), str(destination),
-        "--hash", *limit_option,
-    ])
-    run([
-        str(python), str(tool), "organize", str(destination), *limit_option
-    ])
-    run([
-        str(python), str(tool), "compare", str(source), str(destination),
-        "--hash", *limit_option,
-    ])
+    run(
+        [str(python), "-m", "ipod_backup", "backup", str(source), str(destination), *limit_option],
+        env=environment,
+    )
+    run(
+        [
+            str(python), "-m", "ipod_backup", "compare", str(source), str(destination),
+            "--hash", *limit_option,
+        ],
+        env=environment,
+    )
+    run(
+        [str(python), "-m", "ipod_backup", "organize", str(destination), *limit_option],
+        env=environment,
+    )
+    run(
+        [
+            str(python), "-m", "ipod_backup", "compare", str(source), str(destination),
+            "--hash", *limit_option,
+        ],
+        env=environment,
+    )
 
 
 def docker_path(path: Path) -> str:
@@ -177,12 +197,14 @@ def docker_run(
     run(
         [
             "docker", "run", "--rm",
-            "--mount", f"type=bind,source={docker_path(REPOSITORY)},target=/app,readonly",
+            "--mount",
+            f"type=bind,source={docker_path(PACKAGE_DIR)},target=/app/ipod_backup,readonly",
             "--mount", f"type=bind,source={docker_path(source)},target=/ipod,readonly",
             "--mount", f"type=bind,source={docker_path(destination)},target=/backup",
             "-e", "IPOD_SOURCE=/ipod",
             "-e", "IPOD_BACKUP=/backup",
-            DOCKER_IMAGE, "python", "/app/ipod_backup.py", *command, *limit_option,
+            "-e", "PYTHONPATH=/app",
+            DOCKER_IMAGE, "python", "-m", "ipod_backup", *command, *limit_option,
         ]
     )
 

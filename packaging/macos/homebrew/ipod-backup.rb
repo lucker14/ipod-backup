@@ -7,17 +7,18 @@ class IpodBackup < Formula
   depends_on "python@3.12"
 
   def install
-    libexec.install "ipod_backup.py", "device_test.py", "start_backup.py"
+    libexec.install "src/ipod_backup"
     doc.install "LICENSE"
 
     {
-      "ipod-backup"      => "start_backup.py",
-      "ipod-backup-cli"  => "ipod_backup.py",
-      "ipod-backup-test" => "device_test.py",
-    }.each do |command, script|
+      "ipod-backup"      => "ipod_backup.interactive",
+      "ipod-backup-cli"  => "ipod_backup",
+      "ipod-backup-test" => "ipod_backup.device_test",
+    }.each do |command, module_name|
       (bin/command).write <<~SH
         #!/bin/sh
-        exec "#{formula_opt_bin("python@3.12")}/python3" "#{libexec}/#{script}" "$@"
+        export PYTHONPATH="#{libexec}${PYTHONPATH:+:$PYTHONPATH}"
+        exec "#{formula_opt_bin("python@3.12")}/python3" -m #{module_name} "$@"
       SH
       (bin/command).chmod 0755
     end

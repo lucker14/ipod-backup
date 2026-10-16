@@ -1,5 +1,5 @@
 pkgname=ipod-backup
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc='Back up files from an iPod mounted as a disk'
 arch=('any')
@@ -12,22 +12,22 @@ sha256sums=('SKIP')
 package() {
     install -d "$pkgdir/usr/lib/ipod-backup" \
         "$pkgdir/usr/bin" "$pkgdir/usr/share/licenses/$pkgname"
-    install -m 644 "$srcdir/ipod-backup/ipod_backup.py" \
-        "$srcdir/ipod-backup/device_test.py" \
-        "$srcdir/ipod-backup/start_backup.py" \
+    cp -R "$srcdir/ipod-backup/src/ipod_backup" \
         "$pkgdir/usr/lib/ipod-backup/"
     install -m 644 "$srcdir/ipod-backup/LICENSE" \
         "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 
     for command in ipod-backup ipod-backup-cli ipod-backup-test; do
         case "$command" in
-            ipod-backup) script=start_backup.py ;;
-            ipod-backup-cli) script=ipod_backup.py ;;
-            ipod-backup-test) script=device_test.py ;;
+            ipod-backup) module=ipod_backup.interactive ;;
+            ipod-backup-cli) module=ipod_backup.cli ;;
+            ipod-backup-test) module=ipod_backup.device_test ;;
         esac
         install -Dm 755 /dev/stdin "$pkgdir/usr/bin/$command" <<EOF
 #!/bin/sh
-exec python3 /usr/lib/ipod-backup/$script "\$@"
+PYTHONPATH=/usr/lib/ipod-backup\${PYTHONPATH:+:\$PYTHONPATH}
+export PYTHONPATH
+exec python3 -m $module "\$@"
 EOF
     done
 }

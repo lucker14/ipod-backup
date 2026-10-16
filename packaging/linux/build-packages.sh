@@ -22,19 +22,21 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/usr/lib/ipod-backup" "$STAGE/usr/bin" \
     "$STAGE/usr/share/licenses/ipod-backup" "$OUTPUT_DIR"
 OUTPUT_DIR=$(CDPATH= cd -- "$OUTPUT_DIR" && pwd)
-cp "$ROOT/ipod_backup.py" "$ROOT/device_test.py" "$ROOT/start_backup.py" \
-    "$STAGE/usr/lib/ipod-backup/"
+cp -R "$ROOT/src/ipod_backup" "$STAGE/usr/lib/ipod-backup/"
+find "$STAGE/usr/lib/ipod-backup/ipod_backup" -type d -name __pycache__ -prune -exec rm -rf {} +
 cp "$ROOT/LICENSE" "$STAGE/usr/share/licenses/ipod-backup/LICENSE"
 
 for command_name in ipod-backup ipod-backup-cli ipod-backup-test; do
     case "$command_name" in
-        ipod-backup) module=start_backup.py ;;
-        ipod-backup-cli) module=ipod_backup.py ;;
-        ipod-backup-test) module=device_test.py ;;
+        ipod-backup) module=ipod_backup.interactive ;;
+        ipod-backup-cli) module=ipod_backup.cli ;;
+        ipod-backup-test) module=ipod_backup.device_test ;;
     esac
     printf '%s\n' \
         '#!/bin/sh' \
-        "exec python3 /usr/lib/ipod-backup/$module \"\$@\"" \
+        'PYTHONPATH=/usr/lib/ipod-backup${PYTHONPATH:+:$PYTHONPATH}' \
+        'export PYTHONPATH' \
+        "exec python3 -m $module \"\$@\"" \
         > "$STAGE/usr/bin/$command_name"
     chmod 755 "$STAGE/usr/bin/$command_name"
 done

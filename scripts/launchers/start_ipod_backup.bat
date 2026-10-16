@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0..\.."
 py -3 -c "import sys; raise SystemExit(sys.version_info < (3, 10))"
 if errorlevel 1 (
     echo Python 3.10 or newer is required. Install it from https://www.python.org/downloads/
@@ -23,13 +23,13 @@ if errorlevel 1 (
     goto finish
 )
 echo Checking required packages...
-".venv\Scripts\python.exe" -m pip install --disable-pip-version-check -r requirements.txt
+".venv\Scripts\python.exe" -m pip install --disable-pip-version-check --editable .
 if errorlevel 1 (
-    echo Could not install packages listed in requirements.txt.
+    echo Could not install the iPod Backup package.
     set "RESULT=1"
     goto finish
 )
-".venv\Scripts\python.exe" start_backup.py
+".venv\Scripts\python.exe" -m ipod_backup.interactive
 set "RESULT=%ERRORLEVEL%"
 :finish
 echo.

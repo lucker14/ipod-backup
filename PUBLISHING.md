@@ -22,11 +22,14 @@ verification.
 
 | Path | Purpose |
 |---|---|
+| `src/ipod_backup/` | Installable Python package and application entry points |
+| `tests/` | Unit tests |
+| `scripts/launchers/` | Beginner-friendly Windows, macOS, and Linux launchers |
 | `pyproject.toml` | Python package metadata and installed command names |
 | `packaging/linux/build-packages.sh` | Build local `.deb`, `.rpm`, and `.apk` files |
 | `packaging/unix/build-portable-archive.sh` | Build the shell-installer payload |
 | `packaging/unix/install.sh` | Install the portable release under a prefix |
-| `Formula/ipod-backup.rb` | Homebrew development formula (`--HEAD`) |
+| `packaging/macos/homebrew/ipod-backup.rb` | Homebrew development formula (`--HEAD`) |
 | `packaging/macos/homebrew/ipod-backup.rb.template` | Versioned formula template for a Homebrew tap |
 | `packaging/linux/arch/PKGBUILD` | Arch development recipe tracking `main` |
 | `packaging/linux/arch/PKGBUILD.release.template` | Versioned AUR recipe template |
@@ -34,15 +37,16 @@ verification.
 | `.github/workflows/publish-pypi.yml` | Optional PyPI trusted-publisher workflow |
 
 `pyproject.toml` is the source of the Python package version. For a release,
-the `v`-prefixed Git tag must match it (`v0.1.1` for package version `0.1.1`).
-The Arch template also needs the release version and source checksum.
+the `v`-prefixed Git tag must match it. The Arch template also needs the
+release version and source checksum.
 
 ## First: validate and publish a GitHub Release
 
-Tag `v0.1.0` already points at the earlier packaging commit and must not be
-moved. The first release built from this cleaned-up distribution setup is
-`v0.1.1`; `pyproject.toml` is set to that version. The release workflow checks
-that the tag matches the project version before building.
+Tags `v0.1.0` and `v0.1.1` already exist and must not be moved. The `v0.1.1`
+tag predates the `src/` package-layout changes and is not suitable for a
+release of the current tree. The next release from this layout is `v0.1.2`;
+`pyproject.toml` is set to that version. The release workflow checks that the
+tag matches the project version before building.
 
 For each release:
 
@@ -51,7 +55,7 @@ For each release:
 2. Run the unit tests and validate each built artifact on its target OS. Do not
    advertise an OS or package format based only on a successful build.
 3. Push the reviewed commit and create an annotated tag matching the package
-   version, for example `v0.1.1`.
+   version, for example `v0.1.2`.
 4. Create and publish the GitHub Release for that tag. This triggers the
    workflow.
 5. Confirm the workflow succeeds and the release has the `.deb`, `.rpm`,
@@ -92,7 +96,8 @@ The in-repository formula installs the development branch. To offer
 under the maintainer account. For each release, take the portable archive
 SHA-256 from `SHA256SUMS`, fill in `@VERSION@` and `@SHA256@` in
 `packaging/macos/homebrew/ipod-backup.rb.template`, and publish it in the tap as
-`Formula/ipod-backup.rb`. Run `brew audit --strict` and install/test the
+`Formula/ipod-backup.rb`. The in-repository development formula is
+`packaging/macos/homebrew/ipod-backup.rb`. Run `brew audit --strict` and install/test the
 formula on macOS before announcing it.
 
 ## Arch Linux

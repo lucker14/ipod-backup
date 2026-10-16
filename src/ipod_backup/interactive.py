@@ -6,8 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import device_test
-import ipod_backup
+from . import cli as ipod_backup
+from . import device_test
 
 
 def select_volume(candidates: list[Path]) -> Path:

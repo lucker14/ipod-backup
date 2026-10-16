@@ -157,9 +157,12 @@ if actual != expected:
 expected_members = {
     "ipod-backup",
     "ipod-backup/LICENSE",
-    "ipod-backup/ipod_backup.py",
-    "ipod-backup/device_test.py",
-    "ipod-backup/start_backup.py",
+    "ipod-backup/ipod_backup",
+    "ipod-backup/ipod_backup/__init__.py",
+    "ipod-backup/ipod_backup/__main__.py",
+    "ipod-backup/ipod_backup/cli.py",
+    "ipod-backup/ipod_backup/device_test.py",
+    "ipod-backup/ipod_backup/interactive.py",
 }
 with tarfile.open(archive_path, "r:gz") as archive:
     members = archive.getmembers()
@@ -167,7 +170,11 @@ with tarfile.open(archive_path, "r:gz") as archive:
         raise SystemExit("Release archive contains an unexpected file list.")
     if any(
         member.name not in expected_members
-        or not (member.isdir() if member.name == "ipod-backup" else member.isfile())
+        or not (
+            member.isdir()
+            if member.name in {"ipod-backup", "ipod-backup/ipod_backup"}
+            else member.isfile()
+        )
         for member in members
     ):
         raise SystemExit("Release archive contains an unexpected file type.")
@@ -203,7 +210,7 @@ mkdir -p "$PREFIX/lib/ipod-backup" "$BIN"
 tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR"
 STAGING="$PREFIX/lib/ipod-backup/.${VERSION}.install.$$"
 mkdir "$STAGING"
-cp "$TEMP_DIR/ipod-backup/"* "$STAGING/"
+cp -R "$TEMP_DIR/ipod-backup/." "$STAGING/"
 touch "$STAGING/.managed-by-ipod-backup-installer"
 if [ -d "$DEST" ]; then
     rm -rf "$DEST"
@@ -213,15 +220,17 @@ STAGING=
 
 for command_name in ipod-backup ipod-backup-cli ipod-backup-test; do
     case "$command_name" in
-        ipod-backup) module=start_backup.py ;;
-        ipod-backup-cli) module=ipod_backup.py ;;
-        ipod-backup-test) module=device_test.py ;;
+        ipod-backup) module=ipod_backup.interactive ;;
+        ipod-backup-cli) module=ipod_backup ;;
+        ipod-backup-test) module=ipod_backup.device_test ;;
     esac
     printf '%s\n' \
         '#!/bin/sh' \
         '# Managed by the ipod-backup installer' \
         'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)' \
-        "exec python3 \"\$SCRIPT_DIR/../lib/ipod-backup/$VERSION/$module\" \"\$@\"" \
+        "PYTHONPATH=\"\$SCRIPT_DIR/../lib/ipod-backup/$VERSION\${PYTHONPATH:+:\$PYTHONPATH}\"" \
+        'export PYTHONPATH' \
+        "exec python3 -m $module \"\$@\"" \
         > "$BIN/$command_name"
     chmod 755 "$BIN/$command_name"
 done
