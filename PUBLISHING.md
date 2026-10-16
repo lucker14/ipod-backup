@@ -84,12 +84,14 @@ public GitHub Pages site; no package-hosting vendor account is required.
 
 1. Create a dedicated OpenPGP signing key for the repository. Keep its
    passphrase; do not use a personal key or share the private key in chat or
-   source control:
+   source control. On macOS, install GnuPG first if needed, for example by
+   running `brew install gnupg`:
 
    ```sh
    gpg --quick-generate-key "iPod Backup APT Repository" ed25519 sign 0
    gpg --list-secret-keys --keyid-format long
    gpg --armor --export-secret-keys FINGERPRINT > apt-repo-signing-key.asc
+   gpg --fingerprint FINGERPRINT
    ```
 
 2. In GitHub repository Settings → Pages, set the build and deployment source
@@ -111,8 +113,14 @@ public GitHub Pages site; no package-hosting vendor account is required.
 3. Confirm these URLs are available:
    `https://lucker14.github.io/ipod-backup/dists/stable/InRelease` and
    `https://lucker14.github.io/ipod-backup/pool/main/i/ipod-backup/ipod-backup_0.1.2_all.deb`.
-   The published `archive-keyring.gpg` is the public key; compare its
-   fingerprint against the key you created before trusting it.
+   The published `archive-keyring.gpg` is the public key; download it and
+   compare its fingerprint against the key you created before trusting it:
+
+   ```sh
+   curl -fsSLo archive-keyring.gpg \
+     https://lucker14.github.io/ipod-backup/archive-keyring.gpg
+   gpg --show-keys --with-fingerprint archive-keyring.gpg
+   ```
 4. On clean Debian and Ubuntu test systems, install the key and source:
 
    ```sh
