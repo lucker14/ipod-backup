@@ -86,8 +86,12 @@ Current Cloudsmith setup for workspace `lucker14`:
   broadcast**.
 - `ipod-backup_0.1.2_all.deb` has been manually uploaded and is visible in the
   public repository. Its SHA-256 matches the GitHub Release manifest.
-- The RPM and APK packages have not been uploaded to Cloudsmith. The release
-  workflow has not yet published packages through OIDC.
+- `ipod-backup-0.1.2-1.noarch.rpm` has been manually uploaded under
+  `fedora/any-version`. Its SHA-256 matches the GitHub Release manifest.
+- The attempted manual upload of `ipod-backup-0.1.2.apk` was marked **Error**
+  with no package metadata and has been removed. Diagnose and validate the APK
+  build before retrying or enabling APK publishing.
+- The release workflow has not yet published packages through OIDC.
 - The `ipod-backup-release-publisher` service account and GitHub Actions OIDC
   provider have been created. The service account has **Write** access to
   `ipod-backup-deb` only.
@@ -109,12 +113,12 @@ Finish setup in this order:
    set `CLOUDSMITH_NAMESPACE=lucker14`,
    `CLOUDSMITH_SERVICE_ACCOUNT=ipod-backup-release-publisher`, and
    `CLOUDSMITH_REPOSITORY=ipod-backup-deb`. Leave `CLOUDSMITH_PUBLISH` unset
-   or `false` until ready to make the packages public.
-3. For the next versioned release, set `CLOUDSMITH_PUBLISH` to the exact value
-   `true` after the OIDC setup and client checks are ready. The release workflow
-   will upload that release's Debian, RPM, and Alpine packages. Do not manually
-   rerun the workflow for `v0.1.2`: its Debian package is already present, and
-   duplicate-version upload behavior has not been tested.
+   or `false` until the next release is ready for automated publication.
+3. Before enabling publishing, fix and validate the APK package so Cloudsmith
+   accepts it. Then, for the next versioned release, set `CLOUDSMITH_PUBLISH`
+   to the exact value `true` after OIDC and client checks are ready. Do not
+   manually rerun the workflow for `v0.1.2`: its Debian and RPM packages are
+   already present, and duplicate-version upload behavior has not been tested.
 4. Verify the public feed instructions, fresh installs, upgrades, and package
    signatures on Debian/Ubuntu, an RPM-based distribution, and Alpine. If any
    verification fails, set `CLOUDSMITH_PUBLISH` back to `false` and do not
