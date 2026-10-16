@@ -1,8 +1,8 @@
 # iPod music backup
 
 Back up files from an iPod mounted as a disk, check the copy, and optionally
-rename tagged audio using embedded artist/title metadata. Supports Windows,
-Debian/Linux, and macOS. Python 3.10+; no third-party Python packages.
+rename tagged audio using embedded artist/title metadata. The app uses Python
+3.10+ and has no third-party runtime dependencies.
 
 ## Quick start (no commands to type)
 
@@ -21,16 +21,27 @@ installed.
 
 ## Installation
 
-The program itself has no runtime dependencies beyond Python 3.10 or newer.
-Packages attached to GitHub Releases are downloadable files, not automatically
-configured APT, DNF, or APK repositories. See [PUBLISHING.md](PUBLISHING.md)
-for the maintainer setup required to publish package feeds, Homebrew, AUR, and
-PyPI.
+### Current install options
 
-### Quick install from the latest GitHub Release
+| Platform/channel | Status | Install route |
+|---|---|---|
+| Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `start_ipod_backup.bat` |
+| macOS | Launcher included; public Homebrew tap not published | Install Python 3.10+, then open `start_ipod_backup.command` |
+| Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `./start_ipod_backup.sh` |
+| Any OS with Python | Source checkout install | `pipx install .` from a clone; a PyPI release is not published yet |
+| macOS/Linux | Release installer prepared; needs a published GitHub Release | See “Release installer” below |
+| Debian/Ubuntu, Fedora/RHEL, Alpine | Local package recipes prepared; public APT/RPM/APK feeds not configured | See [PUBLISHING.md](PUBLISHING.md) |
+| Arch Linux | Development PKGBUILD only; not published to AUR | See [PUBLISHING.md](PUBLISHING.md) |
+| FreeBSD/other BSD | No tested installer yet | Python/source use may work; platform discovery and packaging need testing |
 
-After the first GitHub Release has completed successfully, macOS and Linux
-users can download and inspect the installer before running it:
+All routes require Python 3.10 or newer. The Python package has no third-party
+runtime dependencies. The beginner launchers create a private virtual
+environment and install `requirements.txt`.
+
+### Release installer (macOS and Linux)
+
+After a GitHub Release has been published and its workflow succeeds, download
+and inspect the installer before running it:
 
 ```sh
 curl -fsSLO https://github.com/lucker14/ipod-backup/releases/latest/download/install.sh
@@ -38,95 +49,48 @@ less install.sh
 sh install.sh --user
 ```
 
-Or run it directly without saving a local copy:
+Or install without saving a local copy:
 
 ```sh
 curl -fsSL https://github.com/lucker14/ipod-backup/releases/latest/download/install.sh | sh -s -- --user
 ```
 
-This installs the three commands under `~/.local`; add `~/.local/bin` to
-`PATH` if it is not already there. For a system-wide install, download and
-inspect the script, then run `sudo sh install.sh`. Use `--version 1.0.0` to
-select a release. The installer requires `curl`, `tar`, and Python 3.10+ and
-verifies the downloaded portable archive against that release's `SHA256SUMS`.
-The checksum is downloaded from the same GitHub release, so it detects
-corruption but is not an independent signature of publisher identity.
+This installs `ipod-backup`, `ipod-backup-cli`, and `ipod-backup-test` under
+`~/.local`; add `~/.local/bin` to `PATH` if needed. The installer requires
+`curl`, `tar`, and Python 3.10+. It checks the archive against the release's
+`SHA256SUMS`; because both are downloaded from GitHub, this detects corruption
+but is not an independent publisher signature. Use `--version 1.0.0` to choose
+a version.
 
-### Install with pipx
+### Install from a source checkout
 
-From a clone of this repository:
+With `pipx` installed:
 
 ```sh
 pipx install .
 ```
 
-This installs `ipod-backup` for the interactive full-backup flow,
-`ipod-backup-cli` for the backup/compare/organize commands, and
-`ipod-backup-test` for the limited device integration test.
+This installs the three commands listed above. To try the Homebrew development
+formula, use `brew install --HEAD ./Formula/ipod-backup.rb` from a checkout.
+It is not yet a versioned tap formula.
 
-### Homebrew (development formula)
+### Windows source install
 
-The in-repository Homebrew formula currently installs the development `main`
-branch:
+Install Python 3.10 or newer from [python.org](https://www.python.org/downloads/)
+and download the repository. Double-click `start_ipod_backup.bat`. The launcher
+creates a private virtual environment and starts the interactive backup. A
+WinGet, Chocolatey, or MSI release is not available yet.
 
-```sh
-brew install --HEAD ./Formula/ipod-backup.rb
-```
+### Native Linux packages
 
-`brew install ipod-backup` is not available until a versioned formula is
-published in a Homebrew tap; see [PUBLISHING.md](PUBLISHING.md).
-
-### Debian/Ubuntu, Fedora/RHEL, and Alpine
-
-The Linux package builder requires Ruby, the `fpm` gem, and RPM build tools
-(`rpmbuild`, usually provided by a package named `rpm` or `rpm-build`). From
-the repository root, pass the package version and, optionally, an output
-directory:
-
-```sh
-gem install --user-install fpm
-# Add Ruby's user gem bin directory to PATH if `fpm` is not found.
-packaging/build-linux-packages.sh 0.1.0
-```
-
-Install the resulting local package with the matching system package manager:
-
-```sh
-sudo apt install ./dist/ipod-backup_0.1.0_all.deb
-sudo dnf install ./dist/ipod-backup-0.1.0-1.noarch.rpm
-sudo apk add --allow-untrusted ./dist/ipod-backup-0.1.0.apk
-```
-
-The release's RPM is unsigned unless RPM signing has been configured; DNF may
-reject an unsigned package. If the release includes `RPM-GPG-KEY`, import it
-before installing. The APK is unsigned unless APK signing has been configured;
-`--allow-untrusted` is for explicit local testing only, never for a public
-repository.
-
-When a GitHub release is published, the release workflow builds these three
-Linux packages and attaches them to the release. They can be installed as
-local files, but the package-name commands below require configured public
-repositories; they are not enabled yet.
-
-The APK command allows an unsigned local package. Do not use that option for a
-package repository; published Alpine repositories should be signed and their
-public key installed on the system.
-
-### Arch Linux
-
-From the repository root:
-
-```sh
-cd packaging/arch
-makepkg -si
-```
-
-The PKGBUILD currently builds from the project's `main` branch. For package
-repository distribution, pin the source to a tagged release and verify its
-checksum.
-
-The recipes build locally installable packages. Maintainer steps for public
-package feeds and publishing channels are in [PUBLISHING.md](PUBLISHING.md).
+After a GitHub Release completes, its `.deb`, `.rpm`, and `.apk` packages can
+be downloaded and installed as local files. The RPM and APK are unsigned
+unless their signing setup has been enabled. Unsigned local packages are for
+testing only; **do not** bypass signature checks for packages from a public
+repository. Package-name installs (`apt install ipod-backup`, `dnf install
+ipod-backup`, `apk add ipod-backup`) are not available until public package
+feeds are configured. Maintainer instructions and the exact readiness status
+are in [PUBLISHING.md](PUBLISHING.md).
 
 ## Supported devices
 
@@ -261,11 +225,10 @@ By default, the test:
 6. Repeats those operations in Docker.
 
 The test asks before it starts. The connected device is read-only for the
-Docker run; the script does not write to the iPod. Temporary test copies are
-deleted after the test. This is an integration smoke test, not a full backup
-or a verification of every track. In a successful Mac run against this iPod,
-all five selected tracks copied, matched by SHA-256, were renamed, and matched
-again in both venv and Docker. The device had 440 files at that time.
+Docker run; the script does not write to the iPod. Docker mounts the installed
+Python module read-only into `python:3.12-slim`; no project image build is
+required. Temporary test copies are deleted after the test. This is an
+integration smoke test, not a full backup or a verification of every track.
 
 Options:
 
@@ -389,9 +352,9 @@ Build the image in the repository directory:
 docker build -t ipod-backup .
 ```
 
-The real-device test builds and uses its own `ipod-backup:device-test` image.
-It finds the mounted source on the host; it does not make the container
-responsible for discovering USB hardware.
+The real-device test uses `python:3.12-slim` and mounts the Python module and
+device read-only into the container. It finds the mounted source on the host;
+it does not make the container responsible for discovering USB hardware.
 
 Example manual run on Debian/Linux or macOS (with `IPOD_SOURCE` and
 `IPOD_BACKUP` set):

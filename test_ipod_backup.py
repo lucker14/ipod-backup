@@ -119,6 +119,24 @@ class BackupTests(unittest.TestCase):
             volume.resolve(),
         )
 
+    def test_docker_test_runs_installed_module_from_read_only_mount(self):
+        source = self.root / "device"
+        destination = self.root / "backup"
+        modules = self.root / "installed-modules"
+        with (
+            patch("device_test.REPOSITORY", modules),
+            patch("device_test.run") as run_command,
+        ):
+            device_test.docker_run(["backup"], source, destination, 5)
+
+        command = run_command.call_args.args[0]
+        self.assertIn("python:3.12-slim", command)
+        self.assertIn("/app/ipod_backup.py", command)
+        self.assertIn(
+            f"type=bind,source={modules.resolve()},target=/app,readonly",
+            command,
+        )
+
     def test_beginner_starter_finds_ipod_prompts_default_and_copies_all(self):
         volume = self.root / "mounted-volume"
         control = volume / "iPod_Control"

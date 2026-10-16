@@ -15,7 +15,7 @@ case "$VERSION" in
         ;;
 esac
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 

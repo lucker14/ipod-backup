@@ -1,5 +1,5 @@
 pkgname=ipod-backup
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc='Back up files from an iPod mounted as a disk'
 arch=('any')

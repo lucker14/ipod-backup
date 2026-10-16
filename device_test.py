@@ -16,7 +16,7 @@ from pathlib import Path
 import ipod_backup
 
 REPOSITORY = Path(__file__).resolve().parent
-DOCKER_IMAGE = "ipod-backup:device-test"
+DOCKER_IMAGE = "python:3.12-slim"
 
 
 def windows_drive_roots() -> list[Path]:
@@ -177,17 +177,17 @@ def docker_run(
     run(
         [
             "docker", "run", "--rm",
+            "--mount", f"type=bind,source={docker_path(REPOSITORY)},target=/app,readonly",
             "--mount", f"type=bind,source={docker_path(source)},target=/ipod,readonly",
             "--mount", f"type=bind,source={docker_path(destination)},target=/backup",
             "-e", "IPOD_SOURCE=/ipod",
             "-e", "IPOD_BACKUP=/backup",
-            DOCKER_IMAGE, *command, *limit_option,
+            DOCKER_IMAGE, "python", "/app/ipod_backup.py", *command, *limit_option,
         ]
     )
 
 
 def run_docker_suite(source: Path, destination: Path, limit: int | None) -> None:
-    run(["docker", "build", "-t", DOCKER_IMAGE, str(REPOSITORY)])
     docker_run(["backup"], source, destination, limit)
     docker_run(["compare", "--hash"], source, destination, limit)
     docker_run(["organize"], source, destination, limit)

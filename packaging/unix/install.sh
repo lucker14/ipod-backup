@@ -184,6 +184,15 @@ fi
 
 DEST="$PREFIX/lib/ipod-backup/$VERSION"
 BIN="$PREFIX/bin"
+for command_name in ipod-backup ipod-backup-cli ipod-backup-test; do
+    command_path="$BIN/$command_name"
+    if [ -e "$command_path" ] || [ -L "$command_path" ]; then
+        if ! grep -Fqx '# Managed by the ipod-backup installer' "$command_path"; then
+            echo "Refusing to replace an unmanaged command: $command_path" >&2
+            exit 1
+        fi
+    fi
+done
 if [ -e "$DEST" ]; then
     if [ ! -f "$DEST/.managed-by-ipod-backup-installer" ]; then
         echo "Refusing to replace an unmanaged directory: $DEST" >&2
@@ -210,6 +219,7 @@ for command_name in ipod-backup ipod-backup-cli ipod-backup-test; do
     esac
     printf '%s\n' \
         '#!/bin/sh' \
+        '# Managed by the ipod-backup installer' \
         'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)' \
         "exec python3 \"\$SCRIPT_DIR/../lib/ipod-backup/$VERSION/$module\" \"\$@\"" \
         > "$BIN/$command_name"

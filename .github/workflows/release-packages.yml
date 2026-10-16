@@ -8,10 +8,13 @@ permissions:
   contents: write
 
 jobs:
-  linux-packages:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
@@ -19,106 +22,36 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes rpm
       - name: Install fpm
         run: gem install fpm --no-document
-      - name: Build Debian, RPM, and Alpine packages
+      - name: Validate release version
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          version="$RELEASE_TAG"
-          case "$version" in
-            v*) version="${version#v}" ;;
-          esac
-          packaging/build-linux-packages.sh "$version" dist
-          packaging/build-portable-archive.sh "$version" dist
-          cp packaging/install.sh dist/install.sh
-      - name: Sign RPM package and export its public key
-        if: ${{ vars.SIGN_RPM_RELEASE == 'true' || vars.PUBLISH_CLOUDSMITH_RPM == 'true' }}
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if not tag.startswith("v"):
+              raise SystemExit("Release tags must use the v<version> format.")
+          expected = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          actual = tag.removeprefix("v")
+          if actual != expected:
+              raise SystemExit(f"Release tag {tag!r} does not match pyproject version {expected!r}.")
+          PY
+      - name: Build release files
         env:
-          RPM_SIGNING_PRIVATE_KEY: ${{ secrets.RPM_SIGNING_PRIVATE_KEY }}
-          RPM_SIGNING_KEY_ID: ${{ vars.RPM_SIGNING_KEY_ID }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          : "${RPM_SIGNING_PRIVATE_KEY:?Add an unencrypted, dedicated RPM signing key as an Actions secret}"
-          : "${RPM_SIGNING_KEY_ID:?Set the dedicated RPM signing key ID as an Actions variable}"
-          install -d -m 700 "$HOME/.gnupg"
-          printf '%s\n' "$RPM_SIGNING_PRIVATE_KEY" | gpg --batch --import
-          printf '%%_signature gpg\n%%_gpg_name %s\n' "$RPM_SIGNING_KEY_ID" > "$HOME/.rpmmacros"
-          gpg --batch --armor --export "$RPM_SIGNING_KEY_ID" > dist/RPM-GPG-KEY
-          rpm --import dist/RPM-GPG-KEY
-          rpmsign --addsign dist/*.rpm
-          rpm --checksig dist/*.rpm
-      - name: Sign Alpine package and export its public key
-        if: ${{ vars.SIGN_APK_RELEASE == 'true' || vars.PUBLISH_CLOUDSMITH_APK == 'true' }}
-        env:
-          APK_SIGNING_PRIVATE_KEY: ${{ secrets.APK_SIGNING_PRIVATE_KEY }}
-        run: |
-          : "${APK_SIGNING_PRIVATE_KEY:?Add a dedicated RSA APK signing key as an Actions secret}"
-          printf '%s\n' "$APK_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/ipod-backup.rsa"
-          chmod 600 "$RUNNER_TEMP/ipod-backup.rsa"
-          openssl rsa -in "$RUNNER_TEMP/ipod-backup.rsa" \
-            -pubout -out dist/ipod-backup.rsa.pub
-          docker run --rm \
-            -v "$PWD/dist:/packages" \
-            -v "$RUNNER_TEMP/ipod-backup.rsa:/keys/ipod-backup.rsa:ro" \
-            alpine:3.22 sh -ec '
-              apk add --no-cache abuild
-              abuild-sign -k /keys/ipod-backup.rsa /packages/*.apk
-            '
-      - name: Create release checksums
-        run: |
-          cd dist
-          sha256sum * > SHA256SUMS
-      - name: Upload packages to the GitHub release
+          version="${RELEASE_TAG#v}"
+          packaging/linux/build-packages.sh "$version" dist
+          packaging/unix/build-portable-archive.sh "$version" dist
+          cp packaging/unix/install.sh dist/install.sh
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS
+      - name: Attach files to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$RELEASE_TAG" dist/* --clobber
-      - name: Install the configured Cloudsmith CLI version
-        if: ${{ vars.PUBLISH_TO_CLOUDSMITH == 'true' || vars.PUBLISH_CLOUDSMITH_RPM == 'true' || vars.PUBLISH_CLOUDSMITH_APK == 'true' }}
-        env:
-          CLOUDSMITH_CLI_VERSION: ${{ vars.CLOUDSMITH_CLI_VERSION }}
-        run: |
-          : "${CLOUDSMITH_CLI_VERSION:?Set the tested Cloudsmith CLI version in Actions variables}"
-          python3 -m pip install --disable-pip-version-check \
-            "cloudsmith-cli==$CLOUDSMITH_CLI_VERSION"
-      - name: Publish Debian package to Cloudsmith
-        if: ${{ vars.PUBLISH_TO_CLOUDSMITH == 'true' }}
-        env:
-          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          CLOUDSMITH_OWNER: ${{ vars.CLOUDSMITH_OWNER }}
-          CLOUDSMITH_DEB_REPO: ${{ vars.CLOUDSMITH_DEB_REPO }}
-        run: |
-          : "${CLOUDSMITH_API_KEY:?Add the Cloudsmith upload key as an Actions secret}"
-          : "${CLOUDSMITH_OWNER:?Set the Cloudsmith owner in Actions variables}"
-          : "${CLOUDSMITH_DEB_REPO:?Set the Debian repository name in Actions variables}"
-          cloudsmith push deb \
-            "$CLOUDSMITH_OWNER/$CLOUDSMITH_DEB_REPO/any-distro/any-version" \
-            dist/*.deb
-      - name: Publish signed RPM package to Cloudsmith
-        if: ${{ vars.PUBLISH_CLOUDSMITH_RPM == 'true' }}
-        env:
-          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          CLOUDSMITH_OWNER: ${{ vars.CLOUDSMITH_OWNER }}
-          CLOUDSMITH_RPM_REPO: ${{ vars.CLOUDSMITH_RPM_REPO }}
-        run: |
-          : "${CLOUDSMITH_API_KEY:?Add the Cloudsmith upload key as an Actions secret}"
-          : "${CLOUDSMITH_OWNER:?Set the Cloudsmith owner in Actions variables}"
-          : "${CLOUDSMITH_RPM_REPO:?Set the RPM repository name in Actions variables}"
-          if ! rpm --checksig dist/*.rpm; then
-            echo "Refusing to publish an RPM that fails signature verification." >&2
-            exit 1
-          fi
-          cloudsmith push rpm \
-            "$CLOUDSMITH_OWNER/$CLOUDSMITH_RPM_REPO/any-distro/any-version" \
-            dist/*.rpm
-      - name: Publish signed Alpine package to Cloudsmith
-        if: ${{ vars.PUBLISH_CLOUDSMITH_APK == 'true' }}
-        env:
-          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          CLOUDSMITH_OWNER: ${{ vars.CLOUDSMITH_OWNER }}
-          CLOUDSMITH_APK_REPO: ${{ vars.CLOUDSMITH_APK_REPO }}
-        run: |
-          : "${CLOUDSMITH_API_KEY:?Add the Cloudsmith upload key as an Actions secret}"
-          : "${CLOUDSMITH_OWNER:?Set the Cloudsmith owner in Actions variables}"
-          : "${CLOUDSMITH_APK_REPO:?Set the Alpine repository name in Actions variables}"
-          cloudsmith push alpine \
-            "$CLOUDSMITH_OWNER/$CLOUDSMITH_APK_REPO/alpine/any-version" \
-            dist/*.apk
