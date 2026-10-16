@@ -83,7 +83,11 @@ publish to Cloudsmith without replacing the existing GitHub Release assets.
 Current Cloudsmith setup for workspace `lucker14`:
 
 - The multi-format repository `ipod-backup-deb` exists and has a **Public
-  broadcast**. It currently contains no packages.
+  broadcast**.
+- `ipod-backup_0.1.2_all.deb` has been manually uploaded and is visible in the
+  public repository. Its SHA-256 matches the GitHub Release manifest.
+- The RPM and APK packages have not been uploaded to Cloudsmith. The release
+  workflow has not yet published packages through OIDC.
 - The `ipod-backup-release-publisher` service account and GitHub Actions OIDC
   provider have been created. The service account has **Write** access to
   `ipod-backup-deb` only.
@@ -92,9 +96,9 @@ Current Cloudsmith setup for workspace `lucker14`:
   permits that workflow on any branch or tag.
 - The automatically generated service API key has been rotated. OIDC is the
   intended authentication method; do not use or store the replacement API key.
-- No packages have been published, and `CLOUDSMITH_PUBLISH` must remain unset
-  or `false`. The README must not advertise `apt install`, `dnf install`, or
-  `apk add` by package name until publication and clean-client testing pass.
+- The Debian package is not yet verified through a clean APT install. Do not
+  advertise package-name installs until the repository setup, signing, and
+  clean-client tests pass.
 
 Finish setup in this order:
 
@@ -106,9 +110,11 @@ Finish setup in this order:
    `CLOUDSMITH_SERVICE_ACCOUNT=ipod-backup-release-publisher`, and
    `CLOUDSMITH_REPOSITORY=ipod-backup-deb`. Leave `CLOUDSMITH_PUBLISH` unset
    or `false` until ready to make the packages public.
-3. When ready, set `CLOUDSMITH_PUBLISH` to the exact value `true` and manually
-   run the workflow with `v0.1.2` (select the `main` workflow branch). This
-   immediately publishes the packages to the public broadcast.
+3. For the next versioned release, set `CLOUDSMITH_PUBLISH` to the exact value
+   `true` after the OIDC setup and client checks are ready. The release workflow
+   will upload that release's Debian, RPM, and Alpine packages. Do not manually
+   rerun the workflow for `v0.1.2`: its Debian package is already present, and
+   duplicate-version upload behavior has not been tested.
 4. Verify the public feed instructions, fresh installs, upgrades, and package
    signatures on Debian/Ubuntu, an RPM-based distribution, and Alpine. If any
    verification fails, set `CLOUDSMITH_PUBLISH` back to `false` and do not

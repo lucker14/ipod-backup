@@ -96,12 +96,15 @@ sudo apt install ./ipod-backup_0.1.2_all.deb
 ```
 
 This requires Python 3.10 or newer. The package is downloaded from the release;
-there is no APT repository yet, so `apt install ipod-backup` by package name
-does not work.
+an APT package is also published in the
+[public Cloudsmith repository](https://app.cloudsmith.com/lucker14/r/ipod-backup-deb).
+The feed setup and a clean-system install have not yet been verified, so use
+the local `.deb` install above for now; package-name installation instructions
+will be added after that verification.
 
 RPM and APK files are attached for package-format evaluation, but are not
-signed. Do not bypass package signature checks to install them. DNF/APK
-repositories are not configured. Maintainer setup instructions are in
+published to a DNF or APK repository yet. Do not bypass package signature
+checks to install them. Maintainer setup instructions are in
 [PUBLISHING.md](PUBLISHING.md).
 
 ## Supported devices
