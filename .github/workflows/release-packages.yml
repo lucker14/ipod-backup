@@ -94,27 +94,23 @@ jobs:
       - name: Publish packages to Cloudsmith
         env:
           CLOUDSMITH_NAMESPACE: ${{ vars.CLOUDSMITH_NAMESPACE }}
-          CLOUDSMITH_DEB_REPOSITORY: ${{ vars.CLOUDSMITH_DEB_REPOSITORY }}
-          CLOUDSMITH_RPM_REPOSITORY: ${{ vars.CLOUDSMITH_RPM_REPOSITORY }}
-          CLOUDSMITH_APK_REPOSITORY: ${{ vars.CLOUDSMITH_APK_REPOSITORY }}
+          CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
         run: |
           set -euo pipefail
           : "${CLOUDSMITH_NAMESPACE:?Set the CLOUDSMITH_NAMESPACE Actions variable}"
-          : "${CLOUDSMITH_DEB_REPOSITORY:?Set the CLOUDSMITH_DEB_REPOSITORY Actions variable}"
-          : "${CLOUDSMITH_RPM_REPOSITORY:?Set the CLOUDSMITH_RPM_REPOSITORY Actions variable}"
-          : "${CLOUDSMITH_APK_REPOSITORY:?Set the CLOUDSMITH_APK_REPOSITORY Actions variable}"
+          : "${CLOUDSMITH_REPOSITORY:?Set the CLOUDSMITH_REPOSITORY Actions variable}"
           for package in dist/*.deb; do
             cloudsmith push deb \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_DEB_REPOSITORY/any-distro/any-version" \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/any-distro/any-version" \
               "$package"
           done
           for package in dist/*.rpm; do
             cloudsmith push rpm \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_RPM_REPOSITORY/any-distro/any-version" \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/any-distro/any-version" \
               "$package"
           done
           for package in dist/*.apk; do
             cloudsmith push alpine \
-              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_APK_REPOSITORY/alpine/any-version" \
+              "$CLOUDSMITH_NAMESPACE/$CLOUDSMITH_REPOSITORY/alpine/any-version" \
               "$package"
           done

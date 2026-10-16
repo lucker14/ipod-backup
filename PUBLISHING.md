@@ -80,28 +80,41 @@ successful package-build job. The workflow also supports manually rebuilding
 an existing tag through `workflow_dispatch` (for example, `v0.1.2`) to
 publish to Cloudsmith without replacing the existing GitHub Release assets.
 
-Before enabling it:
+Current Cloudsmith setup for workspace `lucker14`:
 
-1. Create three **public** Cloudsmith repositories, one each for Debian, RPM,
-   and Alpine/APK. Suggested slugs are `ipod-backup-deb`,
-   `ipod-backup-rpm`, and `ipod-backup-apk`.
-2. Create a Cloudsmith service account with only the repository upload
-   permissions it needs. Configure GitHub Actions OIDC for this service
-   account and restrict its trust to `lucker14/ipod-backup` and the release
-   workflow. OIDC avoids a long-lived API key in GitHub.
-3. Configure repository/package signing and verify fresh installs and upgrades
-   on Debian/Ubuntu, an RPM-based distribution, and Alpine with signature
-   verification left enabled. Follow Cloudsmith's current setup instructions
-   for each repository format; do not disable client-side verification.
-4. In GitHub repository Settings → Secrets and variables → Actions → Variables,
-   set `CLOUDSMITH_NAMESPACE`, `CLOUDSMITH_SERVICE_ACCOUNT`,
-   `CLOUDSMITH_DEB_REPOSITORY`, `CLOUDSMITH_RPM_REPOSITORY`, and
-   `CLOUDSMITH_APK_REPOSITORY` to the values you created.
-5. Only after the signing and client tests pass, set `CLOUDSMITH_PUBLISH` to
-   the exact value `true`. Run the workflow manually with `v0.1.2` to publish
-   packages from the existing tag (select the `main` workflow branch), then
-   verify the public feed instructions and package signatures before updating
-   the user README.
+- The multi-format repository `ipod-backup-deb` exists and has a **Public
+  broadcast**. It currently contains no packages.
+- The `ipod-backup-release-publisher` service account and GitHub Actions OIDC
+  provider have been created. The service account has **Write** access to
+  `ipod-backup-deb` only.
+- The active OIDC provider is restricted to `lucker14/ipod-backup` and the
+  `.github/workflows/release-packages.yml` workflow file. Its ref wildcard
+  permits that workflow on any branch or tag.
+- The automatically generated service API key has been rotated. OIDC is the
+  intended authentication method; do not use or store the replacement API key.
+- No packages have been published, and `CLOUDSMITH_PUBLISH` must remain unset
+  or `false`. The README must not advertise `apt install`, `dnf install`, or
+  `apk add` by package name until publication and clean-client testing pass.
+
+Finish setup in this order:
+
+1. Configure repository/package signing and obtain the repository setup
+   instructions for Debian/Ubuntu, an RPM-based distribution, and Alpine.
+   Keep client-side signature verification enabled.
+2. In GitHub repository Settings → Secrets and variables → Actions → Variables,
+   set `CLOUDSMITH_NAMESPACE=lucker14`,
+   `CLOUDSMITH_SERVICE_ACCOUNT=ipod-backup-release-publisher`, and
+   `CLOUDSMITH_REPOSITORY=ipod-backup-deb`. Leave `CLOUDSMITH_PUBLISH` unset
+   or `false` until ready to make the packages public.
+3. When ready, set `CLOUDSMITH_PUBLISH` to the exact value `true` and manually
+   run the workflow with `v0.1.2` (select the `main` workflow branch). This
+   immediately publishes the packages to the public broadcast.
+4. Verify the public feed instructions, fresh installs, upgrades, and package
+   signatures on Debian/Ubuntu, an RPM-based distribution, and Alpine. If any
+   verification fails, set `CLOUDSMITH_PUBLISH` back to `false` and do not
+   advertise package-name installs until the issue is resolved.
+5. Update the user README with the verified feed setup and install commands
+   only after all three package-manager tests pass.
 
 The workflow uses Cloudsmith's official
 [GitHub Actions/OIDC integration](https://docs.cloudsmith.com/integrations/integrating-with-github-actions).
