@@ -133,7 +133,7 @@ class BackupTests(unittest.TestCase):
         self.assertIn("python:3.12-slim", command)
         self.assertIn("/app/ipod_backup.py", command)
         self.assertIn(
-            f"type=bind,source={modules.resolve()},target=/app,readonly",
+            f"type=bind,source={device_test.docker_path(modules)},target=/app,readonly",
             command,
         )
 
