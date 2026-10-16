@@ -168,6 +168,113 @@ class BackupTests(unittest.TestCase):
             b"track data",
         )
 
+    def test_copy_retries_transient_read_error_and_removes_partial_copy(self):
+        source = self.source / "Music" / "F00" / "ABCD.mp3"
+        destination = self.root / "retry" / source.name
+        original_open = Path.open
+        source_reads = 0
+
+        class FailingRead:
+            def __init__(self):
+                self.reads = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _size):
+                self.reads += 1
+                if self.reads == 1:
+                    return b"partial"
+                raise OSError("simulated transient device read error")
+
+        def open_path(path, *args, **kwargs):
+            nonlocal source_reads
+            if path == source:
+                source_reads += 1
+                if source_reads == 1:
+                    return FailingRead()
+            return original_open(path, *args, **kwargs)
+
+        with (
+            patch.object(Path, "open", new=open_path),
+            patch.object(ipod_backup.time, "sleep"),
+        ):
+            ipod_backup.copy_one(
+                ipod_backup.FileInfo(source, source.stat().st_size),
+                destination,
+                attempts=3,
+            )
+
+        self.assertEqual(source_reads, 2)
+        self.assertEqual(destination.read_bytes(), source.read_bytes())
+        self.assertEqual(list(destination.parent.iterdir()), [destination])
+
+    def test_copy_removes_partial_file_after_all_read_attempts_fail(self):
+        source = self.source / "Music" / "F00" / "ABCD.mp3"
+        destination = self.root / "failed" / source.name
+        original_open = Path.open
+        source_reads = 0
+
+        class FailingRead:
+            def __init__(self):
+                self.reads = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _size):
+                self.reads += 1
+                if self.reads == 1:
+                    return b"partial"
+                raise OSError("simulated persistent device read error")
+
+        def open_path(path, *_args, **_kwargs):
+            nonlocal source_reads
+            if path == source:
+                source_reads += 1
+                return FailingRead()
+            return original_open(path, *_args, **_kwargs)
+
+        with (
+            patch.object(Path, "open", new=open_path),
+            patch.object(ipod_backup.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(OSError, "simulated persistent device read error"):
+                ipod_backup.copy_one(
+                    ipod_backup.FileInfo(source, source.stat().st_size),
+                    destination,
+                    attempts=3,
+                )
+
+        self.assertEqual(source_reads, 3)
+        self.assertFalse(destination.exists())
+        self.assertEqual(list(destination.parent.iterdir()), [])
+
+    def test_backup_continues_after_unreadable_file(self):
+        unreadable = self.source / "Music" / "F00" / "ABCD.mp3"
+        original_copy = ipod_backup.copy_one
+
+        def copy_with_one_read_error(source, destination, attempts):
+            if source.path == unreadable:
+                raise OSError("simulated persistent device read error")
+            original_copy(source, destination, attempts)
+
+        with patch.object(ipod_backup, "copy_one", side_effect=copy_with_one_read_error):
+            result = ipod_backup.backup(self.source, self.destination, 3, False)
+
+        self.assertEqual(result, 1)
+        self.assertFalse((self.destination / "Music" / "F00" / "ABCD.mp3").exists())
+        self.assertEqual(
+            (self.destination / "iTunes" / "iTunesDB").read_bytes(),
+            b"library data",
+        )
+
     def test_limit_selects_audio_first_and_is_unlimited_by_default(self):
         files = ipod_backup.scan_files(self.source)
         music = self.source / "Music" / "F00"
