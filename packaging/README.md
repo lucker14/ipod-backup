@@ -7,7 +7,7 @@ channel setup belong in [PUBLISHING.md](../PUBLISHING.md).
 | Directory | Target | Current contents/status |
 |---|---|---|
 | `linux/` | Debian, RPM, Alpine, Arch | FPM builder creates local Linux packages; Arch recipe is development-only |
-| `macos/` | Homebrew | Versioned tap formula template |
+| `macos/` | Homebrew | Development formula, versioned template, and tap source |
 | `unix/` | macOS and Linux shell installer | Portable archive builder and release installer |
 | `windows/` (planned) | Windows package managers | Launcher is in `../scripts/launchers/`; add a directory when a WinGet/Chocolatey/MSI package is implemented |
 | `bsd/` (planned) | FreeBSD, OpenBSD, NetBSD, DragonFly BSD | Add a directory after supported OS testing and a native recipe are available |

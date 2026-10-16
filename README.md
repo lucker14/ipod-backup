@@ -26,11 +26,12 @@ starts the backup. Python 3.10 or newer must be installed.
 | Platform/channel | Status | Install route |
 |---|---|---|
 | Windows | Launcher included; standalone installer/package not yet published | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.bat` |
-| macOS | Launcher included; public Homebrew tap not published | Install Python 3.10+, then open `scripts/launchers/start_ipod_backup.command` |
+| macOS | Homebrew tap available; beginner launcher also included | `brew tap lucker14/ipod-backup && brew install ipod-backup` |
 | Linux | Launcher included; public package feeds not configured | Install Python 3.10+, then run `scripts/launchers/start_ipod_backup.sh` |
 | Any OS with Python | Source checkout install | `pipx install .` from a clone; a PyPI release is not published yet |
-| macOS/Linux | Release installer prepared; needs a published GitHub Release | See “Release installer” below |
-| Debian/Ubuntu, Fedora/RHEL, Alpine | Local package recipes prepared; public APT/RPM/APK feeds not configured | See [PUBLISHING.md](PUBLISHING.md) |
+| macOS/Linux | GitHub Release installer available | See “Release installer” below |
+| Debian/Ubuntu | `.deb` available for local installation; no APT feed | See “Native Linux packages” below |
+| Fedora/RHEL, Alpine | Unsigned local `.rpm` / `.apk` assets; no DNF/APK feeds | See [PUBLISHING.md](PUBLISHING.md); unsigned packages are not recommended for normal installation |
 | Arch Linux | Development PKGBUILD only; not published to AUR | See [PUBLISHING.md](PUBLISHING.md) |
 | FreeBSD/other BSD | No tested installer yet | Python/source use may work; platform discovery and packaging need testing |
 
@@ -54,6 +55,9 @@ Or install without saving a local copy:
 ```sh
 curl -fsSL https://github.com/lucker14/ipod-backup/releases/latest/download/install.sh | sh -s -- --user
 ```
+
+The one-line command is convenient, but downloading and reviewing the script
+first is safer.
 
 This installs `ipod-backup`, `ipod-backup-cli`, and `ipod-backup-test` under
 `~/.local`; add `~/.local/bin` to `PATH` if needed. The installer requires
@@ -85,14 +89,20 @@ WinGet, Chocolatey, or MSI release is not available yet.
 
 ### Native Linux packages
 
-After a GitHub Release completes, its `.deb`, `.rpm`, and `.apk` packages can
-be downloaded and installed as local files. The RPM and APK are unsigned
-unless their signing setup has been enabled. Unsigned local packages are for
-testing only; **do not** bypass signature checks for packages from a public
-repository. Package-name installs (`apt install ipod-backup`, `dnf install
-ipod-backup`, `apk add ipod-backup`) are not available until public package
-feeds are configured. Maintainer instructions and the exact readiness status
-are in [PUBLISHING.md](PUBLISHING.md).
+The GitHub Release includes a Debian package for local installation:
+
+```sh
+sudo apt install ./ipod-backup_0.1.2_all.deb
+```
+
+This requires Python 3.10 or newer. The package is downloaded from the release;
+there is no APT repository yet, so `apt install ipod-backup` by package name
+does not work.
+
+RPM and APK files are attached for package-format evaluation, but are not
+signed. Do not bypass package signature checks to install them. DNF/APK
+repositories are not configured. Maintainer setup instructions are in
+[PUBLISHING.md](PUBLISHING.md).
 
 ## Supported devices
 

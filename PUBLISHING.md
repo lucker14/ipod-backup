@@ -31,6 +31,7 @@ verification.
 | `packaging/unix/install.sh` | Install the portable release under a prefix |
 | `packaging/macos/homebrew/ipod-backup.rb` | Homebrew development formula (`--HEAD`) |
 | `packaging/macos/homebrew/ipod-backup.rb.template` | Versioned formula template for a Homebrew tap |
+| `packaging/macos/homebrew/tap/` | Source for the separate `lucker14/homebrew-ipod-backup` tap |
 | `packaging/linux/arch/PKGBUILD` | Arch development recipe tracking `main` |
 | `packaging/linux/arch/PKGBUILD.release.template` | Versioned AUR recipe template |
 | `.github/workflows/release-packages.yml` | Build and attach GitHub Release files |
@@ -40,13 +41,16 @@ verification.
 the `v`-prefixed Git tag must match it. The Arch template also needs the
 release version and source checksum.
 
-## First: validate and publish a GitHub Release
+## Current release
 
-Tags `v0.1.0` and `v0.1.1` already exist and must not be moved. The `v0.1.1`
-tag predates the `src/` package-layout changes and is not suitable for a
-release of the current tree. The next release from this layout is `v0.1.2`;
-`pyproject.toml` is set to that version. The release workflow checks that the
-tag matches the project version before building.
+Release `v0.1.2` is published at
+https://github.com/lucker14/ipod-backup/releases/tag/v0.1.2. Its package-build
+workflow succeeded and attached the portable archive, installer, checksums,
+and local `.deb`, `.rpm`, and `.apk` artifacts. The PyPI workflow was skipped
+because trusted publishing is not configured. Tags `v0.1.0`, `v0.1.1`, and
+`v0.1.2` must not be moved.
+
+## Preparing the next GitHub Release
 
 For each release:
 
@@ -55,7 +59,7 @@ For each release:
 2. Run the unit tests and validate each built artifact on its target OS. Do not
    advertise an OS or package format based only on a successful build.
 3. Push the reviewed commit and create an annotated tag matching the package
-   version, for example `v0.1.2`.
+   version, for example `v0.1.3`.
 4. Create and publish the GitHub Release for that tag. This triggers the
    workflow.
 5. Confirm the workflow succeeds and the release has the `.deb`, `.rpm`,
@@ -91,14 +95,21 @@ upgrade work on clean systems with signature verification enabled.
 
 ## Homebrew
 
-The in-repository formula installs the development branch. To offer
-`brew install`, create a public tap repository named `homebrew-ipod-backup`
-under the maintainer account. For each release, take the portable archive
-SHA-256 from `SHA256SUMS`, fill in `@VERSION@` and `@SHA256@` in
-`packaging/macos/homebrew/ipod-backup.rb.template`, and publish it in the tap as
-`Formula/ipod-backup.rb`. The in-repository development formula is
-`packaging/macos/homebrew/ipod-backup.rb`. Run `brew audit --strict` and install/test the
-formula on macOS before announcing it.
+The public tap is `lucker14/homebrew-ipod-backup`; its formula and README are
+maintained in `packaging/macos/homebrew/tap/` and published from that subtree.
+Users install it with:
+
+```sh
+brew tap lucker14/ipod-backup
+brew install ipod-backup
+```
+
+For each release, take the portable archive SHA-256 from `SHA256SUMS`, update
+the URL, version, and checksum in `tap/Formula/ipod-backup.rb`, and publish the
+subtree to the tap's `main` branch. The source checkout's development formula
+is `packaging/macos/homebrew/ipod-backup.rb`; the versioned formula template
+is `packaging/macos/homebrew/ipod-backup.rb.template`. Audit and test formulas
+on macOS before announcing a new version.
 
 ## Arch Linux
 
